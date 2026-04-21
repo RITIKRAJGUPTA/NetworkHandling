@@ -1,4 +1,5 @@
 import TeamOverview from "./TeamOverview.jsx";
+import TaskAssignments from "./TaskAssignments.jsx";
 
 export default function ManagerDashboard({ activeMenu = "overview" }) {
   console.log("ManagerDashboard activeMenu:", activeMenu); // Debug log to check if prop is received
@@ -7,13 +8,8 @@ export default function ManagerDashboard({ activeMenu = "overview" }) {
     return <TeamOverview />;
   }
   
-  if (activeMenu === "tasks") {
-    return (
-      <div className="alert alert-info mt-3">
-        <h4>Task Assignments</h4>
-        <p>Manage and assign tasks to team members...</p>
-      </div>
-    );
+   if (activeMenu === "tasks") {
+    return <TaskAssignments />;
   }
   
   if (activeMenu === "performance") {

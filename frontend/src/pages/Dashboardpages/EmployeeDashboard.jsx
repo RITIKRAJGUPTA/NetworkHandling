@@ -1,18 +1,50 @@
-export default function EmployeeDashboard({ user }) {
+import MyTasks from "./MyTasks.jsx";
+
+export default function EmployeeDashboard({ activeMenu = "overview", user }) {
+  if (activeMenu === "my-tasks") {
+    return <MyTasks />;
+  }
+  
+  if (activeMenu === "attendance") {
+    return (
+      <div className="alert alert-info mt-3">
+        <h4>Attendance</h4>
+        <p>View and mark your attendance...</p>
+      </div>
+    );
+  }
+  
+  if (activeMenu === "leave-request") {
+    return (
+      <div className="alert alert-info mt-3">
+        <h4>Leave Request</h4>
+        <p>Apply for leave and view your leave balance...</p>
+      </div>
+    );
+  }
+  
+  if (activeMenu === "reviews") {
+    return (
+      <div className="alert alert-info mt-3">
+        <h4>Performance Reviews</h4>
+        <p>View your performance reviews and feedback...</p>
+      </div>
+    );
+  }
+
+  // Default overview
   return (
-    <div className="alert alert-secondary mt-3">
-      <h3>Employee Dashboard</h3>
-      <p><strong>Designation:</strong> {user?.designation || "Not assigned"}</p>
-      {user?.teamLead && (
-        <p><strong>Team Lead:</strong> {user.teamLead.name || user.teamLead}</p>
-      )}
-      <ul>
-        <li>My tasks</li>
-        <li>Attendance tracking</li>
-        <li>Leave requests</li>
-        <li>Performance reviews</li>
-        <li>Training materials</li>
-      </ul>
+    <div className="employee-overview">
+      <div className="row">
+        <div className="col-md-6 mb-4">
+          <div className="card">
+            <div className="card-body">
+              <h5 className="card-title">Welcome, {user?.name}!</h5>
+              <p className="card-text">Your employee dashboard</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

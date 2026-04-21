@@ -4,9 +4,10 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import Task from "../models/Task.js";
 
 const router = express.Router();
-
+console.log("Task model loaded:", !!Task);
 // REGISTER
 router.post("/register", async (req, res) => {
   try {
@@ -395,6 +396,257 @@ router.delete("/users/:userId", authMiddleware, async (req, res) => {
     }
     
     return res.status(403).json({ message: "Access denied. Insufficient permissions." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ========== TASK MANAGEMENT ROUTES ==========
+
+// CREATE TASK (Manager/Admin only)
+router.post("/tasks", authMiddleware, async (req, res) => {
+  try {
+    console.log("=== Creating Task ===");
+    console.log("Request body:", req.body);
+    console.log("User ID:", req.userId);
+    console.log("User Role:", req.userRole);
+    
+    const { title, description, assignedTo, priority, dueDate } = req.body;
+    
+    // Validate required fields
+    if (!title) {
+      return res.status(400).json({ message: "Task title is required" });
+    }
+    
+    if (!assignedTo) {
+      return res.status(400).json({ message: "Please select a team member to assign the task" });
+    }
+    
+    if (!dueDate) {
+      return res.status(400).json({ message: "Due date is required" });
+    }
+    
+    // Check if user has permission to assign tasks (admin or manager)
+    if (req.userRole !== "admin" && req.userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can assign tasks" });
+    }
+    
+    // Verify the assigned user exists
+    const assignedUser = await User.findById(assignedTo);
+    if (!assignedUser) {
+      return res.status(404).json({ message: "Assigned user not found" });
+    }
+    
+    // Create the task with proper date conversion
+    const taskData = {
+      title,
+      description: description || "",
+      assignedTo,
+      assignedBy: req.userId,
+      priority: priority || "medium",
+      dueDate: new Date(dueDate), // Convert string to Date object
+      status: "pending"
+    };
+    
+    console.log("Task data being saved:", taskData);
+    
+    const task = new Task(taskData);
+    await task.save();
+    
+    console.log("Task saved successfully with ID:", task._id);
+    
+    // Populate assignedTo and assignedBy details
+    const populatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "name email designation")
+      .populate("assignedBy", "name email");
+    
+    res.status(201).json({ 
+      message: "Task assigned successfully", 
+      task: populatedTask 
+    });
+  } catch (err) {
+    console.error("Error creating task:", err);
+    res.status(500).json({ 
+      message: err.message,
+      stack: err.stack 
+    });
+  }
+});
+// GET ALL TASKS (Admin/Manager - view all tasks, Employee - view their tasks)
+router.get("/tasks", authMiddleware, async (req, res) => {
+  try {
+    let tasks;
+    
+    if (req.userRole === "admin" || req.userRole === "manager") {
+      // Admin/Manager can see all tasks
+      tasks = await Task.find()
+        .populate("assignedTo", "name email designation")
+        .populate("assignedBy", "name email")
+        .sort({ createdAt: -1 });
+    } else {
+      // Employee can only see their own tasks
+      tasks = await Task.find({ assignedTo: req.userId })
+        .populate("assignedTo", "name email designation")
+        .populate("assignedBy", "name email")
+        .sort({ createdAt: -1 });
+    }
+    
+    res.json(tasks);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET TASKS BY TEAM (Manager only - get tasks of their team members)
+router.get("/tasks/team", authMiddleware, async (req, res) => {
+  try {
+    if (req.userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers can access team tasks" });
+    }
+    
+    // Get all employees under this manager
+    const teamMembers = await User.find({ 
+      role: "employee",
+      teamLead: req.userId 
+    }).select("_id");
+    
+    const memberIds = teamMembers.map(m => m._id);
+    memberIds.push(req.userId); // Include manager's own tasks if any
+    
+    const tasks = await Task.find({ assignedTo: { $in: memberIds } })
+      .populate("assignedTo", "name email designation")
+      .populate("assignedBy", "name email")
+      .sort({ createdAt: -1 });
+    
+    res.json(tasks);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// UPDATE TASK STATUS (Employee can update their own task status)
+// UPDATE TASK (Manager/Admin can update any task)
+router.put("/tasks/:taskId", authMiddleware, async (req, res) => {
+  try {
+    const { title, description, priority, dueDate, status, assignedTo } = req.body;
+    
+    if (req.userRole !== "admin" && req.userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can update tasks" });
+    }
+    
+    const task = await Task.findById(req.params.taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    if (title) task.title = title;
+    if (description !== undefined) task.description = description;
+    if (priority) task.priority = priority;
+    if (dueDate) task.dueDate = new Date(dueDate); // Convert to Date object
+    if (status) task.status = status;
+    if (assignedTo) task.assignedTo = assignedTo;
+    task.updatedAt = new Date();
+    
+    await task.save();
+    
+    const updatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "name email designation")
+      .populate("assignedBy", "name email");
+    
+    res.json({ message: "Task updated successfully", task: updatedTask });
+  } catch (err) {
+    console.error("Error updating task:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// UPDATE TASK (Manager/Admin can update any task)
+// UPDATE TASK STATUS (Employee can update their own task status)
+router.put("/tasks/:taskId/status", authMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ["pending", "in-progress", "completed", "overdue"];
+    
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+    
+    const task = await Task.findById(req.params.taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    // Check if user is assigned to this task or is admin/manager
+    if (task.assignedTo.toString() !== req.userId && req.userRole !== "admin" && req.userRole !== "manager") {
+      return res.status(403).json({ message: "Unauthorized to update this task" });
+    }
+    
+    task.status = status;
+    if (status === "completed") {
+      task.completedAt = new Date();
+    }
+    task.updatedAt = new Date();
+    await task.save();
+    
+    // Populate and return updated task
+    const updatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "name email designation")
+      .populate("assignedBy", "name email");
+    
+    res.json({ message: "Task status updated successfully", task: updatedTask });
+  } catch (err) {
+    console.error("Error updating task status:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+// DELETE TASK (Manager/Admin only)
+router.delete("/tasks/:taskId", authMiddleware, async (req, res) => {
+  try {
+    if (req.userRole !== "admin" && req.userRole !== "manager") {
+      return res.status(403).json({ message: "Only managers and admins can delete tasks" });
+    }
+    
+    const task = await Task.findById(req.params.taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    await Task.findByIdAndDelete(req.params.taskId);
+    res.json({ message: "Task deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ADD COMMENT TO TASK
+router.post("/tasks/:taskId/comments", authMiddleware, async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text || text.trim() === "") {
+      return res.status(400).json({ message: "Comment text is required" });
+    }
+    
+    const task = await Task.findById(req.params.taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    
+    task.comments.push({
+      text,
+      commentedBy: req.userId,
+      commentedAt: new Date()
+    });
+    
+    await task.save();
+    
+    const updatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "name email")
+      .populate("assignedBy", "name email")
+      .populate("comments.commentedBy", "name email");
+    
+    res.json({ message: "Comment added successfully", task: updatedTask });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
