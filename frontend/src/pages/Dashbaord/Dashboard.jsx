@@ -89,6 +89,7 @@ export default function Dashboard() {
         { id: "my-tasks", label: "My Tasks", icon: "📌" },
         { id: "attendance", label: "Attendance", icon: "⏰" },
         { id: "leave-request", label: "Leave Request", icon: "📝" },
+        { id: "performance", label: "My Performance", icon: "📊" }, 
         { id: "reviews", label: "Performance Reviews", icon: "⭐" },
       ],
     };
@@ -125,9 +126,9 @@ export default function Dashboard() {
     return <AdminDashboard activeMenu={activeMenu} />;
   }
   
-  if (role === "manager") {
-    return <ManagerDashboard activeMenu={activeMenu} />; // ✅ Pass activeMenu here
-  }
+ if (role === "manager") {
+  return <ManagerDashboard activeMenu={activeMenu} managerId={userId} />;
+}
   
   if (role === "hr") {
     return <HRDashboard activeMenu={activeMenu} />;

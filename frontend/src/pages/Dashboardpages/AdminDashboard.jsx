@@ -1,7 +1,8 @@
 import ManageUsers from "./ManageUsers.jsx";
+import Reports from "./Reports.jsx";
 
 export default function AdminDashboard({ activeMenu = "overview" }) {
-  console.log("AdminDashboard activeMenu:", activeMenu); // Debug log
+  console.log("AdminDashboard activeMenu:", activeMenu);
   
   if (activeMenu === "users") {
     return <ManageUsers />;
@@ -17,12 +18,7 @@ export default function AdminDashboard({ activeMenu = "overview" }) {
   }
   
   if (activeMenu === "reports") {
-    return (
-      <div className="alert alert-info">
-        <h4>Reports Dashboard</h4>
-        <p>View all system reports here...</p>
-      </div>
-    );
+    return <Reports />;
   }
   
   if (activeMenu === "roles") {

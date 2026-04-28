@@ -1,24 +1,20 @@
 import TeamOverview from "./TeamOverview.jsx";
 import TaskAssignments from "./TaskAssignments.jsx";
+import Performance from "./Performance.jsx";
 
-export default function ManagerDashboard({ activeMenu = "overview" }) {
-  console.log("ManagerDashboard activeMenu:", activeMenu); // Debug log to check if prop is received
+export default function ManagerDashboard({ activeMenu = "overview", managerId }) {
+  console.log("ManagerDashboard activeMenu:", activeMenu, "managerId:", managerId);
   
   if (activeMenu === "team") {
-    return <TeamOverview />;
+    return <TeamOverview managerId={managerId} />;
   }
   
-   if (activeMenu === "tasks") {
-    return <TaskAssignments />;
+  if (activeMenu === "tasks") {
+    return <TaskAssignments managerId={managerId} />;
   }
   
   if (activeMenu === "performance") {
-    return (
-      <div className="alert alert-info mt-3">
-        <h4>Team Performance Metrics</h4>
-        <p>View team performance and analytics...</p>
-      </div>
-    );
+    return <Performance managerId={managerId} />;
   }
   
   if (activeMenu === "leave-team") {
