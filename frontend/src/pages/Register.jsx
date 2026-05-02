@@ -17,6 +17,7 @@ export default function Register() {
   });
 
   const [teamLeads, setTeamLeads] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState("");
 
@@ -24,24 +25,29 @@ export default function Register() {
     setData({ ...data, [e.target.name]: e.target.value });
   };
 
-  // ✅ Fetch team leads when needed
+  // Fetch team leads or managers based on role & designation
   useEffect(() => {
-    if (
-      data.role === "employee" &&
-      data.designation &&
-      data.designation !== "team lead"
-    ) {
-      axios
-        .get("http://localhost:5000/api/auth/team-leads")
-        .then((res) => setTeamLeads(res.data))
-        .catch((err) => console.log(err));
+    if (data.role === "employee" && data.designation) {
+      if (data.designation === "team lead") {
+        // Fetch managers (for team leads)
+        axios
+          .get("http://localhost:5000/api/auth/managers")
+          .then((res) => setManagers(res.data))
+          .catch((err) => console.log(err));
+      } else {
+        // Fetch team leads (for regular employees)
+        axios
+          .get("http://localhost:5000/api/auth/team-leads")
+          .then((res) => setTeamLeads(res.data))
+          .catch((err) => console.log(err));
+      }
     }
   }, [data.role, data.designation]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ Basic validation
+    // Basic validation
     if (
       !data.name ||
       !data.email ||
@@ -54,27 +60,24 @@ export default function Register() {
       return;
     }
 
-    // ✅ Employee validation
+    // Employee validation
     if (data.role === "employee") {
       if (!data.designation) {
         alert("Please select designation");
         return;
       }
-
+      // Regular employees (non‑team‑lead) must have a team lead
       if (data.designation !== "team lead" && !data.teamLead) {
-        alert("Please select team lead");
+        alert("Please select a team lead");
         return;
       }
+      // For team lead, teamLead is optional (can be empty string)
     }
 
     try {
       await axios.post("http://localhost:5000/api/auth/register", data);
-
       alert("Registered Successfully");
-
-      // ✅ Redirect to login page
       navigate("/");
-
     } catch (err) {
       alert(err.response?.data?.message || "Error");
     }
@@ -212,7 +215,7 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Designation & Team Lead Conditional Fields */}
+          {/* Conditional fields for employees */}
           {data.role === "employee" && (
             <>
               <div className="mb-3">
@@ -224,9 +227,8 @@ export default function Register() {
                   value={data.designation}
                   onChange={(e) => {
                     handleChange(e);
-                    if (e.target.value === "team lead") {
-                      setData((prev) => ({ ...prev, teamLead: "" }));
-                    }
+                    // Clear teamLead when designation changes
+                    setData((prev) => ({ ...prev, teamLead: "" }));
                   }}
                 >
                   <option value="">Select Designation</option>
@@ -237,15 +239,16 @@ export default function Register() {
                 </select>
               </div>
 
+              {/* Team Lead (for regular employees) */}
               {data.designation && data.designation !== "team lead" && (
                 <div className="mb-3 animate-slideDown">
-                  <label className="form-label small fw-semibold text-secondary">TEAM LEAD</label>
+                  <label className="form-label small fw-semibold text-secondary">TEAM LEAD (required)</label>
                   <select
                     className="form-select py-2 rounded-3 transition-input"
-                    style={{ borderColor: "#dee2e6", fontSize: "14px" }}
                     name="teamLead"
                     value={data.teamLead}
                     onChange={handleChange}
+                    required
                   >
                     <option value="">Select Team Lead</option>
                     {teamLeads.map((lead) => (
@@ -254,6 +257,27 @@ export default function Register() {
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {/* Manager (for team leads – optional) */}
+              {data.designation === "team lead" && (
+                <div className="mb-3 animate-slideDown">
+                  <label className="form-label small fw-semibold text-secondary">MANAGER (optional but recommended)</label>
+                  <select
+                    className="form-select py-2 rounded-3 transition-input"
+                    name="teamLead"
+                    value={data.teamLead}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Manager (optional)</option>
+                    {managers.map((mgr) => (
+                      <option key={mgr._id} value={mgr._id}>
+                        {mgr.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small className="text-muted">If no manager selected, this team lead will have no manager.</small>
                 </div>
               )}
             </>
@@ -436,7 +460,6 @@ export default function Register() {
           }
         }
         
-        /* Responsive adjustments */
         @media (max-width: 576px) {
           .register-card {
             padding: 1.5rem !important;

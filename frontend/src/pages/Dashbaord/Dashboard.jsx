@@ -7,7 +7,8 @@ import EmployerDashboard from "../Dashboardpages/EmployerDashboard.jsx";
 import ManagerDashboard from "../Dashboardpages/ManagerDashboard.jsx";
 import EmployeeDashboard from "../Dashboardpages/EmployeeDashboard.jsx";
 import MyProfile from "../Dashbaord/Profile/MyProfile.jsx";
-import "./Dashboard.css"; 
+import RoleOverviewStats from "../Dashboardpages/RoleOverviewStats.jsx";
+import "./Dashboard.css";
 
 export default function Dashboard() {
   const [role, setRole] = useState(null);
@@ -19,16 +20,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     const userRole = localStorage.getItem("role");
-    const storedUserId = localStorage.getItem("userId"); // Get userId from localStorage
+    const storedUserId = localStorage.getItem("userId");
     const token = localStorage.getItem("token");
-    
+
     setRole(userRole);
-    setUserId(storedUserId); // Store userId in state
+    setUserId(storedUserId);
 
     if (storedUserId && token) {
       axios
-        .get(`/api/auth/profile/${storedUserId}`, {  // Changed from /api/users/ to /api/auth/
-          headers: { Authorization: `Bearer ${token}` }
+        .get(`/api/auth/profile/${storedUserId}`, {
+          headers: { Authorization: `Bearer ${token}` },
         })
         .then((res) => {
           setUser(res.data);
@@ -56,7 +57,7 @@ export default function Dashboard() {
 
   const getMenuItems = () => {
     const commonMenus = [
-      { id: "overview", label: "Overview", icon: "🏠" },
+      { id: "overview", label: "Overview", icon: "📊" },
       { id: "profile", label: "My Profile", icon: "👤" },
     ];
 
@@ -64,12 +65,12 @@ export default function Dashboard() {
       admin: [
         { id: "users", label: "Manage Users", icon: "👥" },
         { id: "settings", label: "System Settings", icon: "⚙️" },
-        { id: "reports", label: "View Reports", icon: "📊" },
-        { id: "roles", label: "Manage Roles", icon: "🔑" },
+        { id: "reports", label: "View Reports", icon: "📈" },
+        // { id: "roles", label: "Manage Roles", icon: "🔑" },
       ],
       hr: [
         { id: "employees", label: "Employee Management", icon: "👔" },
-        { id: "recruitment", label: "Recruitment", icon: "📝" },
+        // { id: "recruitment", label: "Recruitment", icon: "📝" },
         { id: "leave", label: "Leave Approvals", icon: "📅" },
         { id: "attendance", label: "Attendance", icon: "⏰" },
       ],
@@ -89,66 +90,49 @@ export default function Dashboard() {
         { id: "my-tasks", label: "My Tasks", icon: "📌" },
         { id: "attendance", label: "Attendance", icon: "⏰" },
         { id: "leave-request", label: "Leave Request", icon: "📝" },
-        { id: "performance", label: "My Performance", icon: "📊" }, 
-        { id: "reviews", label: "Performance Reviews", icon: "⭐" },
+        { id: "performance", label: "My Performance", icon: "📊" },
+        // { id: "reviews", label: "Performance Reviews", icon: "⭐" },
       ],
     };
 
     return [...commonMenus, ...(roleSpecificMenus[role] || [])];
   };
 
- const renderMainContent = () => {
-  // Handle Profile menu
-  if (activeMenu === "profile") {
-    return <MyProfile userId={userId} />;
-  }
-
-  // Handle Overview menu
-  if (activeMenu === "overview") {
-    switch (role) {
-      case "admin":
-        return <AdminDashboard activeMenu={activeMenu} />;
-      case "hr":
-        return <HRDashboard activeMenu={activeMenu} />;
-      case "employer":
-        return <EmployerDashboard activeMenu={activeMenu} />;
-      case "manager":
-        return <ManagerDashboard activeMenu={activeMenu} />; // ✅ Pass activeMenu here
-      case "employee":
-        return <EmployeeDashboard user={user} activeMenu={activeMenu} />;
-      default:
-        return <div className="alert alert-danger">Invalid role: {role}</div>;
+  const renderMainContent = () => {
+    if (activeMenu === "profile") {
+      return <MyProfile userId={userId} />;
     }
-  }
 
-  // Handle other menu items for each role
-  if (role === "admin") {
-    return <AdminDashboard activeMenu={activeMenu} />;
-  }
-  
- if (role === "manager") {
-  return <ManagerDashboard activeMenu={activeMenu} managerId={userId} />;
-}
-  
-  if (role === "hr") {
-    return <HRDashboard activeMenu={activeMenu} />;
-  }
-  
-  if (role === "employer") {
-    return <EmployerDashboard activeMenu={activeMenu} />;
-  }
-  
-  if (role === "employee") {
-    return <EmployeeDashboard user={user} activeMenu={activeMenu} />;
-  }
+    if (activeMenu === "overview") {
+      switch (role) {
+        case "admin":
+          return <AdminDashboard activeMenu={activeMenu} />;
+        case "hr":
+          return <HRDashboard activeMenu={activeMenu} />;
+        case "employer":
+          return <EmployerDashboard activeMenu={activeMenu} />;
+        case "manager":
+          return <ManagerDashboard activeMenu={activeMenu} />;
+        case "employee":
+          return <EmployeeDashboard user={user} activeMenu={activeMenu} />;
+        default:
+          return <div className="alert alert-danger">Invalid role: {role}</div>;
+      }
+    }
 
-  return (
-    <div className="content-card">
-      <h3>{getMenuItems().find(item => item.id === activeMenu)?.label}</h3>
-      <p>Content for {activeMenu} will be displayed here.</p>
-    </div>
-  );
-};
+    if (role === "admin") return <AdminDashboard activeMenu={activeMenu} />;
+    if (role === "manager") return <ManagerDashboard activeMenu={activeMenu} managerId={userId} />;
+    if (role === "hr") return <HRDashboard activeMenu={activeMenu} />;
+    if (role === "employer") return <EmployerDashboard activeMenu={activeMenu} />;
+    if (role === "employee") return <EmployeeDashboard user={user} activeMenu={activeMenu} />;
+
+    return (
+      <div className="content-card">
+        <h3>{getMenuItems().find((item) => item.id === activeMenu)?.label}</h3>
+        <p>Content for {activeMenu} will be displayed here.</p>
+      </div>
+    );
+  };
 
   const menuItems = getMenuItems();
 
@@ -156,7 +140,7 @@ export default function Dashboard() {
     <div className="dashboard-container">
       <nav className="dashboard-navbar">
         <div className="navbar-brand">
-          <h3>HRMS Dashboard</h3>
+          <h3>✨ HRMS Dashboard</h3>
         </div>
         <div className="navbar-user">
           <span className="user-role-badge">{role?.toUpperCase()}</span>
@@ -186,13 +170,22 @@ export default function Dashboard() {
         <main className="dashboard-main">
           {activeMenu !== "profile" && (
             <div className="welcome-section">
-              <h2>Welcome, {user?.name || role}!</h2>
-              <p className="text-muted">Here's what's happening with your {role} dashboard today.</p>
-            </div>
+  <div className="welcome-header">
+    <div>
+      <h2>Welcome, {user?.name || role}!</h2>
+      <p className="text-muted">Here's what's happening with your {role} dashboard today.</p>
+    </div>
+    <div className="welcome-date">
+      {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+    </div>
+  </div>
+  {/* Stats cards – only on overview menu */}
+  {activeMenu === "overview" && (
+    <RoleOverviewStats role={role} userId={userId} />
+  )}
+</div>
           )}
-          <div className="main-content-area">
-            {renderMainContent()}
-          </div>
+          <div className="main-content-area">{renderMainContent()}</div>
         </main>
       </div>
     </div>

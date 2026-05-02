@@ -4,7 +4,9 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/auth.js";
-import performanceRoutes from "./routes/performance.js"; // Add this
+import performanceRoutes from "./routes/performance.js";
+import attendanceRoutes from "./routes/attendance.js";
+import leaveRoutes from "./routes/leave.js";
 
 dotenv.config();
 connectDB();
@@ -18,7 +20,9 @@ mongoose.connection.once('open', () => {
 });
 
 app.use("/api/auth", authRoutes);
-app.use("/api/performance", performanceRoutes); // Add this line
+app.use("/api/performance", performanceRoutes); 
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/leave", leaveRoutes);
 
 // Test endpoint to check task model
 app.get("/api/check-models", (req, res) => {

@@ -1,33 +1,26 @@
-import MyTasks from "./MyTasks.jsx";
-import EmployeePerformance from "./EmployeePerformance.jsx";
+// src/pages/DashboardPages/EmployeeDashboard.jsx
+import MyTasks from "./MyTasks";
+import EmployeePerformance from "./EmployeePerformance";
+import EmployeeAttendance from "./EmployeeAttendance";
+import EmployeeLeaveRequest from "./EmployeeLeaveRequest";
 
 export default function EmployeeDashboard({ activeMenu = "overview", user }) {
   if (activeMenu === "my-tasks") {
     return <MyTasks />;
   }
-  
+
   if (activeMenu === "performance") {
     return <EmployeePerformance userId={user?._id} />;
   }
-  
+
   if (activeMenu === "attendance") {
-    return (
-      <div className="alert alert-info mt-3">
-        <h4>Attendance</h4>
-        <p>View and mark your attendance...</p>
-      </div>
-    );
+    return <EmployeeAttendance />;   // ✅ new component
   }
-  
+
   if (activeMenu === "leave-request") {
-    return (
-      <div className="alert alert-info mt-3">
-        <h4>Leave Request</h4>
-        <p>Apply for leave and view your leave balance...</p>
-      </div>
-    );
-  }
-  
+  return <EmployeeLeaveRequest userId={user?._id} />;
+}
+
   if (activeMenu === "reviews") {
     return (
       <div className="alert alert-info mt-3">

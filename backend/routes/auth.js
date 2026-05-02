@@ -25,6 +25,17 @@ router.post("/register", async (req, res) => {
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "User already exists" });
 
+    // Validation for employees
+    if (role === "employee") {
+      if (!designation) {
+        return res.status(400).json({ message: "Designation is required for employees" });
+      }
+      // Regular employees (non‑team‑lead) must have a team lead
+      if (designation !== "team lead" && !teamLead) {
+        return res.status(400).json({ message: "Team lead is required for non‑lead employees" });
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
@@ -33,11 +44,10 @@ router.post("/register", async (req, res) => {
       phone,
       gender,
       role,
+      // Only employees have designation
       designation: role === "employee" ? designation : undefined,
-      teamLead:
-        role === "employee" && designation !== "team lead"
-          ? teamLead
-          : undefined,
+      // For employees: store teamLead (can be manager for team leads, or team lead for regulars)
+      teamLead: role === "employee" ? teamLead : undefined,
       password: hashedPassword,
     });
 
@@ -139,6 +149,16 @@ router.get("/team-leads", async (req, res) => {
   }
 });
 
+// GET /api/auth/managers
+router.get("/managers", async (req, res) => {
+  try {
+    const managers = await User.find({ role: "manager" }).select("_id name");
+    res.json(managers);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Middleware to verify JWT token
 const authMiddleware = (req, res, next) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
@@ -205,6 +225,7 @@ router.put("/profile/:userId", authMiddleware, async (req, res) => {
     const isSelf = user._id.toString() === req.userId;
     const isAdmin = req.userRole === "admin";
     const isManager = req.userRole === "manager";
+    const isHr = req.userRole === "hr";
     
     // Check if manager is trying to update non-employee
     if (isManager && user.role !== "employee") {
@@ -212,9 +233,9 @@ router.put("/profile/:userId", authMiddleware, async (req, res) => {
     }
     
     // Allow if: self update, admin, or manager updating employee
-    if (!isSelf && !isAdmin && !(isManager && user.role === "employee")) {
-      return res.status(403).json({ message: "Unauthorized to update this profile" });
-    }
+    if (!isSelf && !isAdmin && !(isManager && user.role === "employee") && !(isHr && user.role === "employee")) {
+  return res.status(403).json({ message: "Unauthorized to update this profile" });
+}
 
     // Update only allowed fields
     if (name) user.name = name;
