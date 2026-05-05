@@ -4,11 +4,13 @@ import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+
 export default function ForgetPassword() {
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState("");
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,7 +18,7 @@ export default function ForgetPassword() {
     setMsg("");
 
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/forgot-password", { email });
+      const res = await axios.post(`${BACKEND_URL}/api/auth/forgot-password`, { email });
       setMsg(res.data.message);
       toast.success(res.data.message);
       setEmail("");

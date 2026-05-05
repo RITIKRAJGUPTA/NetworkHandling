@@ -21,7 +21,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const COLORS = ["#00d4ff", "#00b4d8", "#48cae4", "#90e0ef", "#caf0f8"];
 
 export default function Performance({ managerId }) {

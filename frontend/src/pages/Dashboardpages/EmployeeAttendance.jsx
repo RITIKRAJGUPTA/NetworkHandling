@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Alert, Spinner, Table, Form, Button } from "react-bootstrap";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export default function EmployeeAttendance() {
   const [records, setRecords] = useState([]);

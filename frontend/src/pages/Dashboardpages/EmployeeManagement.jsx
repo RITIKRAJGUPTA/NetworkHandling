@@ -3,7 +3,7 @@ import axios from "axios";
 import { Modal, Button, Form, Alert, Spinner } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);

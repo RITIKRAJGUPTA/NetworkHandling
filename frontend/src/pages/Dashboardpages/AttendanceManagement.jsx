@@ -5,7 +5,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Alert, Spinner, Table, Form, Button, Modal } from "react-bootstrap";
 import * as XLSX from "xlsx";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export default function AttendanceManagement() {
   // Existing state (daily)

@@ -22,6 +22,7 @@ export default function Register() {
   const [managers, setManagers] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState("");
+   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 
   const handleChange = (e) => {
     setData({ ...data, [e.target.name]: e.target.value });
@@ -31,12 +32,12 @@ export default function Register() {
     if (data.role === "employee" && data.designation) {
       if (data.designation === "team lead") {
         axios
-          .get("http://localhost:5000/api/auth/managers")
+          .get(`${BACKEND_URL}/api/auth/managers`)
           .then((res) => setManagers(res.data))
           .catch((err) => console.log(err));
       } else {
         axios
-          .get("http://localhost:5000/api/auth/team-leads")
+          .get(`${BACKEND_URL}/api/auth/team-leads`)
           .then((res) => setTeamLeads(res.data))
           .catch((err) => console.log(err));
       }
@@ -79,7 +80,7 @@ export default function Register() {
     }
 
     try {
-      await axios.post("http://localhost:5000/api/auth/register", data);
+      await axios.post(`${BACKEND_URL}/api/auth/register`, data);
       toast.success("Registered Successfully! Redirecting to login...", {
         position: "top-right",
         autoClose: 2000,

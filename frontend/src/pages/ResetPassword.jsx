@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 
 export default function ResetPassword() {
   const { token } = useParams();
@@ -31,7 +32,7 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      const res = await axios.post(`http://localhost:5000/api/auth/reset-password/${token}`, {
+      const res = await axios.post(`${BACKEND_URL}/api/auth/reset-password/${token}`, {
         password,
       });
       setMsg(res.data.message);
