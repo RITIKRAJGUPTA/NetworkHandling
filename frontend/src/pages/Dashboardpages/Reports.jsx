@@ -3,16 +3,37 @@ import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
-  AreaChart, Area
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
 } from "recharts";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
-import autoTable from 'jspdf-autotable';
+import autoTable from "jspdf-autotable";
 
-const BACKEND_URL = 'http://localhost:5000';
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#FF6B6B", "#4ECDC4", "#45B7D1"];
+const BACKEND_URL = "http://localhost:5000";
+const COLORS = [
+  "#00d4ff",
+  "#00b4d8",
+  "#48cae4",
+  "#90e0ef",
+  "#caf0f8",
+  "#0077b6",
+  "#023e8a",
+  "#03045e",
+];
 
 export default function Reports() {
   const [loading, setLoading] = useState(true);
@@ -31,33 +52,25 @@ export default function Reports() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      
-      // Fetch all users
+
       const usersResponse = await axios.get(`${BACKEND_URL}/api/auth/users`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      // Fetch all tasks
       const tasksResponse = await axios.get(`${BACKEND_URL}/api/auth/tasks`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       const users = usersResponse.data;
       const tasks = tasksResponse.data;
-      
-      // Calculate user statistics
+
       const userStatsData = calculateUserStats(users);
-      
-      // Calculate task statistics
       const taskStatsData = calculateTaskStats(tasks);
-      
-      // Calculate performance statistics
       const performanceStatsData = calculatePerformanceStats(users, tasks);
-      
+
       setUserStats(userStatsData);
       setTaskStats(taskStatsData);
       setPerformanceStats(performanceStatsData);
-      
+
       toast.success("Reports loaded successfully!");
     } catch (error) {
       console.error("Error fetching reports:", error);
@@ -68,190 +81,174 @@ export default function Reports() {
   };
 
   const calculateUserStats = (users) => {
-    const roleCount = {
-      admin: 0,
-      hr: 0,
-      employer: 0,
-      manager: 0,
-      employee: 0
-    };
-    
-    const designationCount = {
-      "team lead": 0,
-      "L1": 0,
-      "L2": 0,
-      "FE": 0
-    };
-    
-    users.forEach(user => {
-      if (roleCount[user.role] !== undefined) {
-        roleCount[user.role]++;
-      }
-      if (user.designation && designationCount[user.designation] !== undefined) {
+    const roleCount = { admin: 0, hr: 0, employer: 0, manager: 0, employee: 0 };
+    const designationCount = { "team lead": 0, L1: 0, L2: 0, FE: 0 };
+    users.forEach((user) => {
+      if (roleCount[user.role] !== undefined) roleCount[user.role]++;
+      if (user.designation && designationCount[user.designation] !== undefined)
         designationCount[user.designation]++;
-      }
     });
-    
-    // Monthly user registrations
     const monthlyRegistrations = {};
-    users.forEach(user => {
+    users.forEach((user) => {
       const date = new Date(user.createdAt);
-      const monthYear = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-      monthlyRegistrations[monthYear] = (monthlyRegistrations[monthYear] || 0) + 1;
+      const monthYear = `${date.toLocaleString("default", { month: "short" })} ${date.getFullYear()}`;
+      monthlyRegistrations[monthYear] =
+        (monthlyRegistrations[monthYear] || 0) + 1;
     });
-    
     return {
       totalUsers: users.length,
       roleDistribution: roleCount,
       designationDistribution: designationCount,
       monthlyRegistrations,
-      activeUsers: users.filter(u => u.createdAt).length
+      activeUsers: users.filter((u) => u.createdAt).length,
     };
   };
-  
+
   const calculateTaskStats = (tasks) => {
     const statusCount = {
       pending: 0,
       "in-progress": 0,
       completed: 0,
-      overdue: 0
+      overdue: 0,
     };
-    
-    const priorityCount = {
-      low: 0,
-      medium: 0,
-      high: 0,
-      urgent: 0
-    };
-    
-    tasks.forEach(task => {
-      if (statusCount[task.status] !== undefined) {
-        statusCount[task.status]++;
-      }
-      if (priorityCount[task.priority] !== undefined) {
+    const priorityCount = { low: 0, medium: 0, high: 0, urgent: 0 };
+    tasks.forEach((task) => {
+      if (statusCount[task.status] !== undefined) statusCount[task.status]++;
+      if (priorityCount[task.priority] !== undefined)
         priorityCount[task.priority]++;
-      }
     });
-    
-    // Monthly task creation
     const monthlyTasks = {};
-    tasks.forEach(task => {
+    tasks.forEach((task) => {
       const date = new Date(task.createdAt);
-      const monthYear = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+      const monthYear = `${date.toLocaleString("default", { month: "short" })} ${date.getFullYear()}`;
       monthlyTasks[monthYear] = (monthlyTasks[monthYear] || 0) + 1;
     });
-    
-    // Monthly completion rate
     const monthlyCompletion = {};
-    tasks.filter(t => t.status === "completed").forEach(task => {
-      const date = new Date(task.completedAt || task.updatedAt);
-      const monthYear = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-      monthlyCompletion[monthYear] = (monthlyCompletion[monthYear] || 0) + 1;
-    });
-    
-    const completionRate = tasks.length > 0 
-      ? (statusCount.completed / tasks.length * 100).toFixed(1)
-      : 0;
-    
+    tasks
+      .filter((t) => t.status === "completed")
+      .forEach((task) => {
+        const date = new Date(task.completedAt || task.updatedAt);
+        const monthYear = `${date.toLocaleString("default", { month: "short" })} ${date.getFullYear()}`;
+        monthlyCompletion[monthYear] = (monthlyCompletion[monthYear] || 0) + 1;
+      });
+    const completionRate =
+      tasks.length > 0 ? (statusCount.completed / tasks.length) * 100 : 0;
     return {
       totalTasks: tasks.length,
       statusDistribution: statusCount,
       priorityDistribution: priorityCount,
       monthlyTasks,
       monthlyCompletion,
-      completionRate: parseFloat(completionRate)
+      completionRate: parseFloat(completionRate.toFixed(1)),
     };
   };
-  
+
   const calculatePerformanceStats = (users, tasks) => {
-    // Employee performance metrics
     const employeePerformance = users
-      .filter(u => u.role === "employee")
-      .map(emp => {
-        const employeeTasks = tasks.filter(t => t.assignedTo?._id === emp._id || t.assignedTo === emp._id);
-        const completedTasks = employeeTasks.filter(t => t.status === "completed");
-        const completionRate = employeeTasks.length > 0 
-          ? (completedTasks.length / employeeTasks.length * 100).toFixed(1)
-          : 0;
-        
+      .filter((u) => u.role === "employee")
+      .map((emp) => {
+        const employeeTasks = tasks.filter(
+          (t) => t.assignedTo?._id === emp._id || t.assignedTo === emp._id,
+        );
+        const completedTasks = employeeTasks.filter(
+          (t) => t.status === "completed",
+        );
+        const completionRate =
+          employeeTasks.length > 0
+            ? (completedTasks.length / employeeTasks.length) * 100
+            : 0;
         let avgCompletionTime = 0;
-        const completedWithDates = completedTasks.filter(t => t.completedAt);
+        const completedWithDates = completedTasks.filter((t) => t.completedAt);
         if (completedWithDates.length > 0) {
           const totalDays = completedWithDates.reduce((sum, task) => {
             const daysToComplete = Math.ceil(
-              (new Date(task.completedAt) - new Date(task.createdAt)) / (1000 * 60 * 60 * 24)
+              (new Date(task.completedAt) - new Date(task.createdAt)) /
+                (1000 * 60 * 60 * 24),
             );
             return sum + daysToComplete;
           }, 0);
-          avgCompletionTime = (totalDays / completedWithDates.length).toFixed(1);
+          avgCompletionTime = totalDays / completedWithDates.length;
         }
-        
         return {
           name: emp.name,
           designation: emp.designation || "N/A",
           totalTasks: employeeTasks.length,
           completedTasks: completedTasks.length,
-          completionRate: parseFloat(completionRate),
-          avgCompletionTime: parseFloat(avgCompletionTime)
+          completionRate: parseFloat(completionRate.toFixed(1)),
+          avgCompletionTime: parseFloat(avgCompletionTime.toFixed(1)),
         };
       })
-      .filter(emp => emp.totalTasks > 0)
+      .filter((emp) => emp.totalTasks > 0)
       .sort((a, b) => b.completionRate - a.completionRate);
-    
+
     return {
       employeePerformance,
       topPerformers: employeePerformance.slice(0, 5),
-      needsAttention: employeePerformance.filter(emp => emp.completionRate < 50)
+      needsAttention: employeePerformance.filter(
+        (emp) => emp.completionRate < 50,
+      ),
     };
   };
-  
+
   const exportToExcel = async () => {
     if (!userStats || !taskStats) return;
-    
     setExportLoading(true);
     try {
       const workbook = XLSX.utils.book_new();
-      
-      // User Statistics Sheet
+      // User Summary
       const userSummary = [
         ["USER STATISTICS"],
         ["Total Users", userStats.totalUsers],
-        [""],
+        [],
         ["Role Distribution"],
         ["Role", "Count"],
-        ...Object.entries(userStats.roleDistribution).map(([role, count]) => [role, count]),
-        [""],
+        ...Object.entries(userStats.roleDistribution).map(([role, count]) => [
+          role,
+          count,
+        ]),
+        [],
         ["Designation Distribution"],
         ["Designation", "Count"],
-        ...Object.entries(userStats.designationDistribution).map(([designation, count]) => [designation, count])
+        ...Object.entries(userStats.designationDistribution).map(
+          ([des, count]) => [des, count],
+        ),
       ];
       const userSheet = XLSX.utils.aoa_to_sheet(userSummary);
       XLSX.utils.book_append_sheet(workbook, userSheet, "User Statistics");
-      
-      // Task Statistics Sheet
+      // Task Summary
       const taskSummary = [
         ["TASK STATISTICS"],
         ["Total Tasks", taskStats.totalTasks],
         ["Completion Rate", `${taskStats.completionRate}%`],
-        [""],
+        [],
         ["Status Distribution"],
         ["Status", "Count"],
-        ...Object.entries(taskStats.statusDistribution).map(([status, count]) => [status, count]),
-        [""],
+        ...Object.entries(taskStats.statusDistribution).map(
+          ([status, count]) => [status, count],
+        ),
+        [],
         ["Priority Distribution"],
         ["Priority", "Count"],
-        ...Object.entries(taskStats.priorityDistribution).map(([priority, count]) => [priority, count])
+        ...Object.entries(taskStats.priorityDistribution).map(
+          ([priority, count]) => [priority, count],
+        ),
       ];
       const taskSheet = XLSX.utils.aoa_to_sheet(taskSummary);
       XLSX.utils.book_append_sheet(workbook, taskSheet, "Task Statistics");
-      
-      // Employee Performance Sheet
       if (performanceStats?.employeePerformance.length > 0) {
-        const employeeSheet = XLSX.utils.json_to_sheet(performanceStats.employeePerformance);
-        XLSX.utils.book_append_sheet(workbook, employeeSheet, "Employee Performance");
+        const employeeSheet = XLSX.utils.json_to_sheet(
+          performanceStats.employeePerformance,
+        );
+        XLSX.utils.book_append_sheet(
+          workbook,
+          employeeSheet,
+          "Employee Performance",
+        );
       }
-      
-      XLSX.writeFile(workbook, `System_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(
+        workbook,
+        `System_Report_${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
       toast.success("Excel report exported successfully!");
     } catch (error) {
       console.error("Error exporting to Excel:", error);
@@ -260,112 +257,98 @@ export default function Reports() {
       setExportLoading(false);
     }
   };
-  
+
   const exportToPDF = async () => {
     if (!userStats || !taskStats) return;
-    
     setExportLoading(true);
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
-      
-      // Title
       doc.setFontSize(24);
-      doc.setTextColor(44, 62, 80);
-      doc.text("System Reports Dashboard", pageWidth / 2, 20, { align: "center" });
-      
+      doc.setTextColor(0, 212, 255);
+      doc.text("System Reports Dashboard", pageWidth / 2, 20, {
+        align: "center",
+      });
       doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 30, { align: "center" });
-      
-      // User Statistics
+      doc.setTextColor(180, 190, 219);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 30, {
+        align: "center",
+      });
+      // User stats
       doc.setFontSize(16);
-      doc.setTextColor(44, 62, 80);
+      doc.setTextColor(0, 212, 255);
       doc.text("User Statistics", 14, 45);
-      
-      const userData = [
-        ["Total Users", userStats.totalUsers.toString()],
-        ["Active Users", userStats.activeUsers.toString()]
-      ];
-      
       autoTable(doc, {
         startY: 50,
         head: [["Metric", "Value"]],
-        body: userData,
+        body: [
+          ["Total Users", userStats.totalUsers.toString()],
+          ["Active Users", userStats.activeUsers.toString()],
+        ],
         theme: "striped",
-        headStyles: { fillColor: [52, 152, 219] }
+        headStyles: { fillColor: [0, 180, 216] },
       });
-      
-      // Role Distribution
       let finalY = doc.lastAutoTable.finalY + 10;
       doc.setFontSize(14);
       doc.text("Role Distribution", 14, finalY);
-      
-      const roleData = Object.entries(userStats.roleDistribution).map(([role, count]) => [role, count]);
+      const roleData = Object.entries(userStats.roleDistribution).map(
+        ([role, count]) => [role, count],
+      );
       autoTable(doc, {
         startY: finalY + 5,
         head: [["Role", "Count"]],
         body: roleData,
         theme: "striped",
-        headStyles: { fillColor: [52, 152, 219] }
+        headStyles: { fillColor: [0, 180, 216] },
       });
-      
-      // Task Statistics
       finalY = doc.lastAutoTable.finalY + 10;
       doc.setFontSize(16);
       doc.text("Task Statistics", 14, finalY);
-      
-      const taskData = [
-        ["Total Tasks", taskStats.totalTasks.toString()],
-        ["Completion Rate", `${taskStats.completionRate}%`]
-      ];
-      
       autoTable(doc, {
         startY: finalY + 5,
         head: [["Metric", "Value"]],
-        body: taskData,
+        body: [
+          ["Total Tasks", taskStats.totalTasks.toString()],
+          ["Completion Rate", `${taskStats.completionRate}%`],
+        ],
         theme: "striped",
-        headStyles: { fillColor: [52, 152, 219] }
+        headStyles: { fillColor: [0, 180, 216] },
       });
-      
-      // Task Status Distribution
       finalY = doc.lastAutoTable.finalY + 10;
       doc.setFontSize(14);
       doc.text("Task Status Distribution", 14, finalY);
-      
-      const statusData = Object.entries(taskStats.statusDistribution).map(([status, count]) => [status, count]);
+      const statusData = Object.entries(taskStats.statusDistribution).map(
+        ([status, count]) => [status, count],
+      );
       autoTable(doc, {
         startY: finalY + 5,
         head: [["Status", "Count"]],
         body: statusData,
         theme: "striped",
-        headStyles: { fillColor: [52, 152, 219] }
+        headStyles: { fillColor: [0, 180, 216] },
       });
-      
-      // Top Performers
       if (performanceStats?.topPerformers.length > 0) {
         finalY = doc.lastAutoTable.finalY + 10;
         doc.setFontSize(14);
         doc.text("Top 5 Performers", 14, finalY);
-        
-        const performerData = performanceStats.topPerformers.map(emp => [
+        const performerData = performanceStats.topPerformers.map((emp) => [
           emp.name,
           emp.designation,
           emp.totalTasks,
           emp.completedTasks,
-          `${emp.completionRate}%`
+          `${emp.completionRate}%`,
         ]);
-        
         autoTable(doc, {
           startY: finalY + 5,
-          head: [["Employee", "Designation", "Total Tasks", "Completed", "Rate"]],
+          head: [
+            ["Employee", "Designation", "Total Tasks", "Completed", "Rate"],
+          ],
           body: performerData,
           theme: "striped",
-          headStyles: { fillColor: [52, 152, 219] }
+          headStyles: { fillColor: [0, 180, 216] },
         });
       }
-      
-      doc.save(`System_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(`System_Report_${new Date().toISOString().split("T")[0]}.pdf`);
       toast.success("PDF report exported successfully!");
     } catch (error) {
       console.error("Error exporting to PDF:", error);
@@ -374,18 +357,18 @@ export default function Reports() {
       setExportLoading(false);
     }
   };
-  
+
   const renderUserStatsCharts = () => {
     if (!userStats) return null;
-    
-    const roleData = Object.entries(userStats.roleDistribution).map(([name, value]) => ({ name, value }));
-    const designationData = Object.entries(userStats.designationDistribution).map(([name, value]) => ({ name, value }));
-    
-    const monthlyData = Object.entries(userStats.monthlyRegistrations).map(([month, count]) => ({
-      month,
-      registrations: count
-    })).slice(-6);
-    
+    const roleData = Object.entries(userStats.roleDistribution).map(
+      ([name, value]) => ({ name, value }),
+    );
+    const designationData = Object.entries(
+      userStats.designationDistribution,
+    ).map(([name, value]) => ({ name, value }));
+    const monthlyData = Object.entries(userStats.monthlyRegistrations)
+      .map(([month, count]) => ({ month, registrations: count }))
+      .slice(-6);
     return (
       <div className="row">
         <div className="col-md-6 mb-4">
@@ -395,28 +378,27 @@ export default function Reports() {
             </div>
             <div className="card-body">
               <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={roleData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {roleData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+  <PieChart>
+    <Pie
+      data={roleData}
+      cx="50%"
+      cy="50%"
+      label={false}
+      outerRadius={80}
+      fill="#8884d8"
+      dataKey="value"
+    >
+      {roleData.map((entry, index) => (
+        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+      ))}
+    </Pie>
+    <Tooltip />
+    <Legend verticalAlign="bottom" height={36} />
+  </PieChart>
+</ResponsiveContainer>
             </div>
           </div>
         </div>
-        
         <div className="col-md-6 mb-4">
           <div className="card h-100">
             <div className="card-header">
@@ -429,13 +411,12 @@ export default function Reports() {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#8884d8" />
+                  <Bar dataKey="value" fill="#00d4ff" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
-        
         {monthlyData.length > 0 && (
           <div className="col-md-12 mb-4">
             <div className="card">
@@ -450,7 +431,12 @@ export default function Reports() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="registrations" stroke="#8884d8" strokeWidth={2} />
+                    <Line
+                      type="monotone"
+                      dataKey="registrations"
+                      stroke="#00d4ff"
+                      strokeWidth={2}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -460,19 +446,22 @@ export default function Reports() {
       </div>
     );
   };
-  
+
   const renderTaskStatsCharts = () => {
     if (!taskStats) return null;
-    
-    const statusData = Object.entries(taskStats.statusDistribution).map(([name, value]) => ({ name, value }));
-    const priorityData = Object.entries(taskStats.priorityDistribution).map(([name, value]) => ({ name, value }));
-    
-    const monthlyTaskData = Object.entries(taskStats.monthlyTasks).map(([month, count]) => ({
-      month,
-      created: count,
-      completed: taskStats.monthlyCompletion[month] || 0
-    })).slice(-6);
-    
+    const statusData = Object.entries(taskStats.statusDistribution).map(
+      ([name, value]) => ({ name, value }),
+    );
+    const priorityData = Object.entries(taskStats.priorityDistribution).map(
+      ([name, value]) => ({ name, value }),
+    );
+    const monthlyTaskData = Object.entries(taskStats.monthlyTasks)
+      .map(([month, count]) => ({
+        month,
+        created: count,
+        completed: taskStats.monthlyCompletion[month] || 0,
+      }))
+      .slice(-6);
     return (
       <div className="row">
         <div className="col-md-6 mb-4">
@@ -488,13 +477,17 @@ export default function Reports() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) =>
+                      `${name}: ${(percent * 100).toFixed(0)}%`
+                    }
                     outerRadius={80}
-                    fill="#8884d8"
                     dataKey="value"
                   >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {statusData.map((_, idx) => (
+                      <Cell
+                        key={`cell-${idx}`}
+                        fill={COLORS[idx % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -503,7 +496,6 @@ export default function Reports() {
             </div>
           </div>
         </div>
-        
         <div className="col-md-6 mb-4">
           <div className="card h-100">
             <div className="card-header">
@@ -517,13 +509,17 @@ export default function Reports() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) =>
+                      `${name}: ${(percent * 100).toFixed(0)}%`
+                    }
                     outerRadius={80}
-                    fill="#8884d8"
                     dataKey="value"
                   >
-                    {priorityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {priorityData.map((_, idx) => (
+                      <Cell
+                        key={`cell-${idx}`}
+                        fill={COLORS[idx % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -532,7 +528,6 @@ export default function Reports() {
             </div>
           </div>
         </div>
-        
         {monthlyTaskData.length > 0 && (
           <div className="col-md-12 mb-4">
             <div className="card">
@@ -547,8 +542,20 @@ export default function Reports() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="created" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                    <Area type="monotone" dataKey="completed" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
+                    <Area
+                      type="monotone"
+                      dataKey="created"
+                      fill="#00d4ff"
+                      fillOpacity="0.3"
+                      stroke="#00d4ff"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="completed"
+                      fill="#82ca9d"
+                      fillOpacity="0.3"
+                      stroke="#82ca9d"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -558,9 +565,9 @@ export default function Reports() {
       </div>
     );
   };
-  
+
   const renderPerformanceStats = () => {
-    if (!performanceStats || performanceStats.employeePerformance.length === 0) {
+    if (!performanceStats || performanceStats.employeePerformance.length === 0)
       return (
         <div className="card">
           <div className="card-body">
@@ -570,8 +577,6 @@ export default function Reports() {
           </div>
         </div>
       );
-    }
-    
     return (
       <div className="row">
         <div className="col-md-12 mb-4">
@@ -582,7 +587,7 @@ export default function Reports() {
             <div className="card-body">
               <div className="table-responsive">
                 <table className="table table-hover">
-                  <thead className="table-light">
+                  <thead className="table-dark">
                     <tr>
                       <th>#</th>
                       <th>Employee</th>
@@ -594,9 +599,9 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {performanceStats.employeePerformance.map((emp, index) => (
-                      <tr key={index}>
-                        <td>{index + 1}</td>
+                    {performanceStats.employeePerformance.map((emp, idx) => (
+                      <tr key={idx}>
+                        <td>{idx + 1}</td>
                         <td>{emp.name}</td>
                         <td>{emp.designation}</td>
                         <td>{emp.totalTasks}</td>
@@ -604,7 +609,7 @@ export default function Reports() {
                         <td>
                           <div className="progress" style={{ height: "20px" }}>
                             <div
-                              className={`progress-bar ${emp.completionRate >= 70 ? 'bg-success' : emp.completionRate >= 40 ? 'bg-warning' : 'bg-danger'}`}
+                              className={`progress-bar ${emp.completionRate >= 70 ? "bg-success" : emp.completionRate >= 40 ? "bg-warning" : "bg-danger"}`}
                               style={{ width: `${emp.completionRate}%` }}
                             >
                               {emp.completionRate}%
@@ -620,7 +625,6 @@ export default function Reports() {
             </div>
           </div>
         </div>
-        
         {performanceStats.topPerformers.length > 0 && (
           <div className="col-md-6 mb-4">
             <div className="card h-100">
@@ -629,14 +633,21 @@ export default function Reports() {
               </div>
               <div className="card-body">
                 <ul className="list-group">
-                  {performanceStats.topPerformers.map((emp, index) => (
-                    <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
+                  {performanceStats.topPerformers.map((emp, idx) => (
+                    <li
+                      key={idx}
+                      className="list-group-item d-flex justify-content-between align-items-center bg-dark text-white"
+                    >
                       <div>
-                        <strong>{index + 1}. {emp.name}</strong>
+                        <strong>
+                          {idx + 1}. {emp.name}
+                        </strong>
                         <br />
                         <small className="text-muted">{emp.designation}</small>
                       </div>
-                      <span className="badge bg-success rounded-pill">{emp.completionRate}%</span>
+                      <span className="badge bg-success rounded-pill">
+                        {emp.completionRate}%
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -644,7 +655,6 @@ export default function Reports() {
             </div>
           </div>
         )}
-        
         {performanceStats.needsAttention.length > 0 && (
           <div className="col-md-6 mb-4">
             <div className="card h-100">
@@ -653,14 +663,21 @@ export default function Reports() {
               </div>
               <div className="card-body">
                 <ul className="list-group">
-                  {performanceStats.needsAttention.map((emp, index) => (
-                    <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
+                  {performanceStats.needsAttention.map((emp, idx) => (
+                    <li
+                      key={idx}
+                      className="list-group-item d-flex justify-content-between align-items-center bg-dark text-white"
+                    >
                       <div>
-                        <strong>{index + 1}. {emp.name}</strong>
+                        <strong>
+                          {idx + 1}. {emp.name}
+                        </strong>
                         <br />
                         <small className="text-muted">{emp.designation}</small>
                       </div>
-                      <span className="badge bg-danger rounded-pill">{emp.completionRate}%</span>
+                      <span className="badge bg-danger rounded-pill">
+                        {emp.completionRate}%
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -671,10 +688,9 @@ export default function Reports() {
       </div>
     );
   };
-  
+
   const renderOverview = () => {
     if (!userStats || !taskStats) return null;
-    
     return (
       <>
         <div className="row mb-4">
@@ -715,53 +731,48 @@ export default function Reports() {
             </div>
           </div>
         </div>
-        
         {renderUserStatsCharts()}
       </>
     );
   };
-  
+
   if (loading) {
     return (
       <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+        <div className="spinner-border text-info" role="status"></div>
         <p className="mt-3">Loading reports...</p>
       </div>
     );
   }
-  
+
   return (
     <>
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="reports-container">
         <div className="reports-header">
           <div>
-            <h3 className="mb-2">
-              📊 Reports Dashboard
-            </h3>
-            <p className="text-muted">View and export system-wide reports and analytics</p>
+            <h3 className="mb-2">📊 Reports Dashboard</h3>
+            <p className="text-muted">
+              View and export system-wide reports and analytics
+            </p>
           </div>
           <div className="header-buttons">
-            <button 
-              className="btn btn-success me-2" 
+            <button
+              className="btn-export me-2"
               onClick={exportToExcel}
               disabled={exportLoading}
             >
-              {exportLoading ? 'Exporting...' : '📊 Export Excel'}
+              {exportLoading ? "Exporting..." : "📊 Export Excel"}
             </button>
-            <button 
-              className="btn btn-danger" 
+            <button
+              className="btn-export-pdf"
               onClick={exportToPDF}
               disabled={exportLoading}
             >
-              {exportLoading ? 'Exporting...' : '📄 Export PDF'}
+              {exportLoading ? "Exporting..." : "📄 Export PDF"}
             </button>
           </div>
         </div>
-        
-        {/* Report Navigation Tabs */}
         <ul className="nav nav-tabs mb-4">
           <li className="nav-item">
             <button
@@ -796,8 +807,6 @@ export default function Reports() {
             </button>
           </li>
         </ul>
-        
-        {/* Report Content */}
         <div className="reports-content">
           {selectedReport === "overview" && renderOverview()}
           {selectedReport === "users" && renderUserStatsCharts()}
@@ -805,119 +814,122 @@ export default function Reports() {
           {selectedReport === "performance" && renderPerformanceStats()}
         </div>
       </div>
-      
       <style>{`
         .reports-container {
-          background: white;
-          border-radius: 12px;
-          padding: 24px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          background: rgba(15, 25, 45, 0.6);
+          backdrop-filter: blur(12px);
+          border-radius: 28px;
+          padding: 28px;
+          border: 1px solid rgba(0, 212, 255, 0.2);
+          transition: all 0.3s ease;
         }
-        
         .reports-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 2px solid #e9ecef;
-          padding-bottom: 16px;
-          margin-bottom: 24px;
+          border-bottom: 1px solid rgba(0,212,255,0.3);
+          padding-bottom: 20px;
+          margin-bottom: 28px;
+          flex-wrap: wrap;
+          gap: 16px;
         }
-        
         .reports-header h3 {
           margin: 0;
-          color: #1a1a2e;
-          font-weight: 600;
+          background: linear-gradient(135deg, #ffffff, #00d4ff);
+          background-clip: text;
+          -webkit-background-clip: text;
+          color: transparent;
+          font-weight: 700;
         }
-        
+        .text-muted { color: #9aa4bf !important; }
+        .btn-export, .btn-export-pdf {
+          background: rgba(0,180,216,0.15);
+          border: 1px solid rgba(0,212,255,0.3);
+          color: #00d4ff;
+          padding: 10px 24px;
+          border-radius: 40px;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+        .btn-export:hover, .btn-export-pdf:hover { background: rgba(0,212,255,0.25); transform: translateY(-2px); }
+        .btn-export-pdf { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+        .btn-export-pdf:hover { background: rgba(239,68,68,0.25); }
         .stat-card {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border-radius: 12px;
+          background: rgba(10,18,32,0.7);
+          backdrop-filter: blur(8px);
+          border-radius: 24px;
           padding: 20px;
           display: flex;
           align-items: center;
-          gap: 15px;
+          gap: 16px;
+          border: 1px solid rgba(0,212,255,0.2);
+          transition: all 0.2s;
         }
-        
-        .stat-card .stat-icon {
-          font-size: 32px;
-        }
-        
-        .stat-card .stat-info h3 {
-          margin: 0;
-          font-size: 28px;
-          font-weight: bold;
-        }
-        
-        .stat-card .stat-info p {
-          margin: 0;
-          opacity: 0.9;
-        }
-        
-        .nav-tabs {
-          border-bottom: 2px solid #e9ecef;
-        }
-        
+        .stat-card:hover { border-color: #00d4ff; transform: translateY(-4px); }
+        .stat-icon { font-size: 2.5rem; color: #00d4ff; }
+        .stat-info h3 { margin: 0; font-size: 2rem; font-weight: 700; color: #fff; }
+        .stat-info p { margin: 0; color: #9aa4bf; font-size: 0.85rem; }
+        .nav-tabs { border-bottom: 1px solid #2a3a55; }
         .nav-tabs .nav-link {
+          background: transparent;
           border: none;
-          color: #6c757d;
+          color: #b0bedb;
           font-weight: 500;
           padding: 10px 20px;
+          transition: 0.2s;
         }
-        
-        .nav-tabs .nav-link:hover {
-          color: #667eea;
-          border: none;
-        }
-        
+        .nav-tabs .nav-link:hover { color: #00d4ff; }
         .nav-tabs .nav-link.active {
-          color: #667eea;
-          border-bottom: 2px solid #667eea;
+          color: #00d4ff;
+          border-bottom: 2px solid #00d4ff;
           background: transparent;
         }
-        
         .reports-content .card {
-          border: none;
-          box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
-          border-radius: 10px;
-          margin-bottom: 20px;
+          background: rgba(10,18,32,0.6);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(0,212,255,0.15);
+          border-radius: 24px;
+          margin-bottom: 24px;
         }
-        
         .reports-content .card-header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border-radius: 10px 10px 0 0;
-          padding: 15px 20px;
-        }
-        
-        .reports-content .table th {
-          background-color: #f8f9fa;
+          background: rgba(0,212,255,0.1);
+          border-bottom: 1px solid rgba(0,212,255,0.2);
+          color: #00d4ff;
           font-weight: 600;
+          padding: 15px 20px;
+          border-radius: 24px 24px 0 0;
         }
-        
-        .progress {
-          background-color: #e9ecef;
-          border-radius: 10px;
+        .reports-content .table {
+          color: #ecf0f1;
         }
-        
+        .reports-content .table th {
+          background-color: #1e293b;
+          color: #00d4ff;
+          border-bottom: 1px solid #2a3a55;
+        }
+        .reports-content .table td {
+          border-color: #1e2a3a;
+        }
+        .progress { background-color: #1e293b; border-radius: 20px; }
+        .progress-bar { border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
+        .list-group-item {
+          background: rgba(10,18,32,0.8);
+          border-color: #2a3a55;
+          color: #ecf0f1;
+        }
+        .bg-success { background: linear-gradient(90deg, #00b4d8, #0077b6) !important; }
+        .bg-danger { background: linear-gradient(90deg, #ef4444, #dc2626) !important; }
+        .alert-info {
+          background: rgba(0,212,255,0.1);
+          color: #00d4ff;
+          border: 1px solid rgba(0,212,255,0.3);
+          border-radius: 20px;
+        }
         @media (max-width: 768px) {
-          .reports-container {
-            padding: 16px;
-          }
-          
-          .reports-header {
-            flex-direction: column;
-            gap: 15px;
-            text-align: center;
-          }
-          
-          .stat-card {
-            padding: 15px;
-          }
-          
-          .stat-card .stat-info h3 {
-            font-size: 20px;
-          }
+          .reports-container { padding: 16px; }
+          .reports-header { flex-direction: column; text-align: center; }
+          .stat-card { padding: 15px; }
+          .stat-info h3 { font-size: 1.5rem; }
         }
       `}</style>
     </>

@@ -2,6 +2,7 @@ import TeamOverview from "./TeamOverview.jsx";
 import TaskAssignments from "./TaskAssignments.jsx";
 import Performance from "./Performance.jsx";
 import ManagerLeaveRequests from "./ManagerLeaveRequests";
+import SiteDataManagement from "./SiteDataManagement"; 
 
 export default function ManagerDashboard({ activeMenu = "overview", managerId }) {
   console.log("ManagerDashboard activeMenu:", activeMenu, "managerId:", managerId);
@@ -20,6 +21,9 @@ export default function ManagerDashboard({ activeMenu = "overview", managerId })
   
   if (activeMenu === "leave-team") {
   return <ManagerLeaveRequests />;
+}
+ if (activeMenu === "site-data") {
+  return <SiteDataManagement />;
 }
 
   // Default overview

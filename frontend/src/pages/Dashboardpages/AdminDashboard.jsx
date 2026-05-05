@@ -1,5 +1,6 @@
 import ManageUsers from "./ManageUsers.jsx";
 import Reports from "./Reports.jsx";
+import SiteDataManagement from "./SiteDataManagement"; 
 
 export default function AdminDashboard({ activeMenu = "overview" }) {
   console.log("AdminDashboard activeMenu:", activeMenu);
@@ -15,6 +16,9 @@ export default function AdminDashboard({ activeMenu = "overview" }) {
         <p>Configure system-wide settings here...</p>
       </div>
     );
+  }
+   if (activeMenu === "site-data") {
+    return <SiteDataManagement />;
   }
   
   if (activeMenu === "reports") {

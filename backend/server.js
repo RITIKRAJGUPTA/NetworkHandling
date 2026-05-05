@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.js";
 import performanceRoutes from "./routes/performance.js";
 import attendanceRoutes from "./routes/attendance.js";
 import leaveRoutes from "./routes/leave.js";
+import siteRoutes from "./routes/site.js";
 
 dotenv.config();
 connectDB();
@@ -23,6 +24,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/performance", performanceRoutes); 
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave", leaveRoutes);
+app.use("/api/sites", siteRoutes);
+
 
 // Test endpoint to check task model
 app.get("/api/check-models", (req, res) => {

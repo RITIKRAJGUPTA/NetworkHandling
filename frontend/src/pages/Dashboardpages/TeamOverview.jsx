@@ -22,16 +22,8 @@ function TeamOverview() {
     designation: "",
     address: "",
     dateOfBirth: "",
-    emergencyContact: {
-      name: "",
-      phone: "",
-      relationship: ""
-    },
-    bankDetails: {
-      accountNumber: "",
-      bankName: "",
-      ifscCode: ""
-    }
+    emergencyContact: { name: "", phone: "", relationship: "" },
+    bankDetails: { accountNumber: "", bankName: "", ifscCode: "" }
   });
 
   useEffect(() => {
@@ -42,19 +34,12 @@ function TeamOverview() {
     try {
       const token = localStorage.getItem("token");
       const currentUserId = localStorage.getItem("userId");
-      
-      // Fetch all users
       const response = await axios.get(`${BACKEND_URL}/api/auth/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      // Filter out admin and HR users, and exclude the current manager
       const filteredMembers = response.data.filter(user => 
-        user.role !== "admin" && 
-        user.role !== "hr" && 
-        user._id !== currentUserId
+        user.role !== "admin" && user.role !== "hr" && user._id !== currentUserId
       );
-      
       setTeamMembers(filteredMembers);
       setLoading(false);
     } catch (error) {
@@ -114,7 +99,6 @@ function TeamOverview() {
     try {
       const token = localStorage.getItem("token");
       const updateData = {};
-      
       if (editFormData.name !== selectedUser.name) updateData.name = editFormData.name;
       if (editFormData.email !== selectedUser.email) updateData.email = editFormData.email;
       if (editFormData.phone !== selectedUser.phone) updateData.phone = editFormData.phone;
@@ -124,7 +108,6 @@ function TeamOverview() {
       if (editFormData.dateOfBirth !== (selectedUser.dateOfBirth ? selectedUser.dateOfBirth.split('T')[0] : "")) {
         updateData.dateOfBirth = editFormData.dateOfBirth;
       }
-      
       if (JSON.stringify(editFormData.emergencyContact) !== JSON.stringify({
         name: selectedUser.emergencyContact?.name || "",
         phone: selectedUser.emergencyContact?.phone || "",
@@ -132,7 +115,6 @@ function TeamOverview() {
       })) {
         updateData.emergencyContact = editFormData.emergencyContact;
       }
-      
       if (JSON.stringify(editFormData.bankDetails) !== JSON.stringify({
         accountNumber: selectedUser.bankDetails?.accountNumber || "",
         bankName: selectedUser.bankDetails?.bankName || "",
@@ -140,17 +122,14 @@ function TeamOverview() {
       })) {
         updateData.bankDetails = editFormData.bankDetails;
       }
-
       if (Object.keys(updateData).length === 0) {
         toast.info("No changes to update");
         setShowEditModal(false);
         return;
       }
-
       await axios.put(`${BACKEND_URL}/api/auth/profile/${selectedUser._id}`, updateData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
       toast.success("Team member updated successfully!");
       setShowEditModal(false);
       fetchTeamMembers();
@@ -161,7 +140,6 @@ function TeamOverview() {
   };
 
   const handleDeleteClick = (user) => {
-    // Prevent deleting admin or HR (extra safety check)
     if (user.role === "admin" || user.role === "hr") {
       toast.error("You cannot delete Admin or HR users");
       return;
@@ -218,7 +196,7 @@ function TeamOverview() {
   if (loading) {
     return (
       <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status">
+        <div className="spinner-border text-info" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
         <p className="mt-3">Loading team members...</p>
@@ -228,13 +206,11 @@ function TeamOverview() {
 
   return (
     <>
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="team-overview-container">
         <div className="team-header">
           <div>
-            <h3 className="mb-2">
-              <i className="bi bi-people-fill"></i> Team Overview
-            </h3>
+            <h3 className="mb-2">👥 Team Overview</h3>
             <p className="text-muted">Manage your team members</p>
           </div>
           <div className="team-stats">
@@ -250,7 +226,7 @@ function TeamOverview() {
             <div className="col-md-6">
               <input
                 type="text"
-                className="form-control"
+                className="search-input"
                 placeholder="🔍 Search by name, email, phone or designation..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -258,7 +234,7 @@ function TeamOverview() {
             </div>
             <div className="col-md-4">
               <select
-                className="form-select"
+                className="role-filter"
                 value={filterDesignation}
                 onChange={(e) => setFilterDesignation(e.target.value)}
               >
@@ -270,78 +246,34 @@ function TeamOverview() {
               </select>
             </div>
             <div className="col-md-2">
-              <button className="btn btn-outline-primary w-100" onClick={fetchTeamMembers}>
-                <i className="bi bi-arrow-repeat"></i> Refresh
+              <button className="refresh-btn w-100" onClick={fetchTeamMembers}>
+                🔄 Refresh
               </button>
             </div>
           </div>
         </div>
 
-        <div className="table-responsive">
-          <table className="table table-hover">
+        <div className="table-wrapper">
+          <table className="modern-table">
             <thead>
-              <tr>
-                <th style={{ width: "5%" }}>#</th>
-                <th style={{ width: "15%" }}>Name</th>
-                <th style={{ width: "20%" }}>Email</th>
-                <th style={{ width: "12%" }}>Phone</th>
-                <th style={{ width: "12%" }}>Designation</th>
-                <th style={{ width: "8%" }}>Status</th>
-                <th style={{ width: "18%" }}>Actions</th>
-              </tr>
+              <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Designation</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {filteredMembers.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="text-center py-5">
-                    <div className="text-muted">
-                      <i className="bi bi-inbox" style={{ fontSize: "48px" }}></i>
-                      <p className="mt-2">No team members found</p>
-                    </div>
-                  </td>
-                </tr>
+                <tr><td colSpan="7" className="empty-state"><div>📭 No team members found</div></td></tr>
               ) : (
                 filteredMembers.map((member, index) => (
                   <tr key={member._id}>
-                    <td className="text-center">{index + 1}</td>
-                    <td>
-                      <strong>{member.name}</strong>
-                    </td>
-                    <td>{member.email}</td>
-                    <td>{member.phone || "—"}</td>
-                    <td>
-                      <span className={`badge bg-${getRoleBadgeColor(member.role)}`}>
-                        {member.role?.toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      {member.designation ? (
-                        <span className={`badge bg-${getDesignationBadgeColor(member.designation)}`}>
-                          {member.designation.toUpperCase()}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td>
-                      <span className="badge bg-success">Active</span>
-                    </td>
-                    <td>
-                      <div className="btn-group btn-group-sm" role="group">
-                        <button
-                          className="btn btn-outline-primary"
-                          onClick={() => handleEditClick(member)}
-                          title="Edit Member"
-                        >
-                          <i className="bi bi-pencil"></i> Edit
-                        </button>
-                        <button
-                          className="btn btn-outline-danger"
-                          onClick={() => handleDeleteClick(member)}
-                          title="Remove Member"
-                        >
-                          <i className="bi bi-person-x"></i> Remove
-                        </button>
+                    <td data-label="#">{index + 1}</td>
+                    <td data-label="Name" className="user-name">{member.name}</td>
+                    <td data-label="Email">{member.email}</td>
+                    <td data-label="Phone">{member.phone || "—"}</td>
+                    <td data-label="Designation">{member.designation ? <span className={`designation-badge bg-${getDesignationBadgeColor(member.designation)}`}>{member.designation.toUpperCase()}</span> : "—"}</td>
+                    <td data-label="Status"><span className="status-badge active">Active</span></td>
+                    <td data-label="Actions">
+                      <div className="action-buttons">
+                        <button className="edit-action" onClick={() => handleEditClick(member)} title="Edit Member">✏️</button>
+                        <button className="delete-action" onClick={() => handleDeleteClick(member)} title="Remove Member">🗑️</button>
                       </div>
                     </td>
                   </tr>
@@ -351,345 +283,245 @@ function TeamOverview() {
           </table>
         </div>
 
-        {/* Edit Team Member Modal */}
+        {/* Edit Modal */}
         {showEditModal && selectedUser && (
-          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-            <div className="modal-dialog modal-lg">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Edit Team Member: {selectedUser?.name}</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setShowEditModal(false)}
-                  ></button>
-                </div>
-                <form onSubmit={handleUpdateUser}>
-                  <div className="modal-body">
-                    <h6 className="mb-3 text-primary">Personal Information</h6>
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label">Full Name *</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          name="name"
-                          value={editFormData.name}
-                          onChange={handleEditInputChange}
-                          required
-                        />
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label">Email *</label>
-                        <input
-                          type="email"
-                          className="form-control"
-                          name="email"
-                          value={editFormData.email}
-                          onChange={handleEditInputChange}
-                          required
-                        />
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label">Phone</label>
-                        <input
-                          type="tel"
-                          className="form-control"
-                          name="phone"
-                          value={editFormData.phone}
-                          onChange={handleEditInputChange}
-                        />
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label">Gender</label>
-                        <select
-                          className="form-select"
-                          name="gender"
-                          value={editFormData.gender}
-                          onChange={handleEditInputChange}
-                        >
-                          <option value="">Select Gender</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label">Designation</label>
-                        <select
-                          className="form-select"
-                          name="designation"
-                          value={editFormData.designation}
-                          onChange={handleEditInputChange}
-                        >
-                          <option value="">Select Designation</option>
-                          <option value="team lead">Team Lead</option>
-                          <option value="L1">L1 Developer</option>
-                          <option value="L2">L2 Developer</option>
-                          <option value="FE">Frontend Engineer</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label">Date of Birth</label>
-                        <input
-                          type="date"
-                          className="form-control"
-                          name="dateOfBirth"
-                          value={editFormData.dateOfBirth}
-                          onChange={handleEditInputChange}
-                        />
-                      </div>
-                      <div className="col-md-12 mb-3">
-                        <label className="form-label">Address</label>
-                        <textarea
-                          className="form-control"
-                          name="address"
-                          value={editFormData.address}
-                          onChange={handleEditInputChange}
-                          rows="2"
-                          placeholder="Enter full address"
-                        ></textarea>
-                      </div>
-                    </div>
-
-                    <h6 className="mb-3 text-primary mt-3">Emergency Contact</h6>
-                    <div className="row">
-                      <div className="col-md-4 mb-3">
-                        <label className="form-label">Contact Name</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          name="name"
-                          value={editFormData.emergencyContact.name}
-                          onChange={handleEmergencyContactChange}
-                          placeholder="Emergency contact name"
-                        />
-                      </div>
-                      <div className="col-md-4 mb-3">
-                        <label className="form-label">Contact Phone</label>
-                        <input
-                          type="tel"
-                          className="form-control"
-                          name="phone"
-                          value={editFormData.emergencyContact.phone}
-                          onChange={handleEmergencyContactChange}
-                          placeholder="Emergency contact phone"
-                        />
-                      </div>
-                      <div className="col-md-4 mb-3">
-                        <label className="form-label">Relationship</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          name="relationship"
-                          value={editFormData.emergencyContact.relationship}
-                          onChange={handleEmergencyContactChange}
-                          placeholder="e.g., Father, Mother, Spouse"
-                        />
-                      </div>
-                    </div>
-
-                    <h6 className="mb-3 text-primary mt-3">Bank Details</h6>
-                    <div className="row">
-                      <div className="col-md-4 mb-3">
-                        <label className="form-label">Account Number</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          name="accountNumber"
-                          value={editFormData.bankDetails.accountNumber}
-                          onChange={handleBankDetailsChange}
-                          placeholder="Bank account number"
-                        />
-                      </div>
-                      <div className="col-md-4 mb-3">
-                        <label className="form-label">Bank Name</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          name="bankName"
-                          value={editFormData.bankDetails.bankName}
-                          onChange={handleBankDetailsChange}
-                          placeholder="Bank name"
-                        />
-                      </div>
-                      <div className="col-md-4 mb-3">
-                        <label className="form-label">IFSC Code</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          name="ifscCode"
-                          value={editFormData.bankDetails.ifscCode}
-                          onChange={handleBankDetailsChange}
-                          placeholder="IFSC code"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => setShowEditModal(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-primary">
-                      Save Changes
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-            <div className="modal-dialog">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Confirm Remove</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setShowDeleteConfirm(false)}
-                  ></button>
-                </div>
+          <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+            <div className="modern-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header"><h3>✏️ Edit Team Member: {selectedUser?.name}</h3><button className="close-btn" onClick={() => setShowEditModal(false)}>×</button></div>
+              <form onSubmit={handleUpdateUser}>
                 <div className="modal-body">
-                  <p>Are you sure you want to remove <strong>{userToDelete?.name}</strong> from the team?</p>
-                  <p className="text-danger">This action cannot be undone!</p>
+                  <h4 className="section-title">Personal Information</h4>
+                  <div className="form-grid">
+                    <div className="form-field"><label>Full Name *</label><input type="text" name="name" value={editFormData.name} onChange={handleEditInputChange} required /></div>
+                    <div className="form-field"><label>Email *</label><input type="email" name="email" value={editFormData.email} onChange={handleEditInputChange} required /></div>
+                    <div className="form-field"><label>Phone</label><input type="tel" name="phone" value={editFormData.phone} onChange={handleEditInputChange} /></div>
+                    <div className="form-field"><label>Gender</label><select name="gender" value={editFormData.gender} onChange={handleEditInputChange}><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+                    <div className="form-field"><label>Designation</label><select name="designation" value={editFormData.designation} onChange={handleEditInputChange}><option value="">Select</option><option value="team lead">Team Lead</option><option value="L1">L1 Developer</option><option value="L2">L2 Developer</option><option value="FE">Frontend Engineer</option></select></div>
+                    <div className="form-field"><label>Date of Birth</label><input type="date" name="dateOfBirth" value={editFormData.dateOfBirth} onChange={handleEditInputChange} /></div>
+                    <div className="form-field full-width"><label>Address</label><textarea name="address" value={editFormData.address} onChange={handleEditInputChange} rows="2" /></div>
+                  </div>
+                  <h4 className="section-title">Emergency Contact</h4>
+                  <div className="form-grid three-col">
+                    <div className="form-field"><label>Name</label><input type="text" name="name" value={editFormData.emergencyContact.name} onChange={handleEmergencyContactChange} /></div>
+                    <div className="form-field"><label>Phone</label><input type="tel" name="phone" value={editFormData.emergencyContact.phone} onChange={handleEmergencyContactChange} /></div>
+                    <div className="form-field"><label>Relationship</label><input type="text" name="relationship" value={editFormData.emergencyContact.relationship} onChange={handleEmergencyContactChange} /></div>
+                  </div>
+                  <h4 className="section-title">Bank Details</h4>
+                  <div className="form-grid three-col">
+                    <div className="form-field"><label>Account Number</label><input type="text" name="accountNumber" value={editFormData.bankDetails.accountNumber} onChange={handleBankDetailsChange} /></div>
+                    <div className="form-field"><label>Bank Name</label><input type="text" name="bankName" value={editFormData.bankDetails.bankName} onChange={handleBankDetailsChange} /></div>
+                    <div className="form-field"><label>IFSC Code</label><input type="text" name="ifscCode" value={editFormData.bankDetails.ifscCode} onChange={handleBankDetailsChange} /></div>
+                  </div>
                 </div>
                 <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowDeleteConfirm(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={handleDeleteUser}
-                  >
-                    Remove Member
-                  </button>
+                  <button type="button" className="cancel-modal-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
+                  <button type="submit" className="save-modal-btn">💾 Save Changes</button>
                 </div>
-              </div>
+              </form>
             </div>
           </div>
         )}
 
-        <style>{`
-          .team-overview-container {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          }
-
-          .team-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #e9ecef;
-            padding-bottom: 16px;
-            margin-bottom: 24px;
-          }
-
-          .team-header h3 {
-            margin: 0;
-            color: #1a1a2e;
-            font-weight: 600;
-          }
-
-          .team-stats {
-            display: flex;
-            gap: 15px;
-          }
-
-          .stat-badge {
-            background: linear-gradient(135deg, #198754 0%, #20c997 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            text-align: center;
-          }
-
-          .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            display: block;
-          }
-
-          .stat-label {
-            font-size: 12px;
-            opacity: 0.9;
-          }
-
-          .table th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            border-top: none;
-          }
-
-          .table td {
-            vertical-align: middle;
-          }
-
-          .badge {
-            font-weight: 500;
-            padding: 5px 10px;
-            border-radius: 6px;
-          }
-
-          .btn-group {
-            gap: 5px;
-          }
-
-          .modal.show {
-            display: block;
-            z-index: 1050;
-          }
-
-          h6.text-primary {
-            font-weight: 600;
-            border-bottom: 2px solid #e9ecef;
-            padding-bottom: 8px;
-          }
-
-          @media (max-width: 768px) {
-            .team-overview-container {
-              padding: 16px;
-            }
-
-            .team-header {
-              flex-direction: column;
-              gap: 15px;
-              text-align: center;
-            }
-
-            .table {
-              font-size: 12px;
-            }
-
-            .table td, .table th {
-              padding: 8px;
-            }
-
-            .btn-group {
-              flex-direction: column;
-              gap: 5px;
-            }
-
-            .btn-group .btn {
-              width: 100%;
-            }
-          }
-        `}</style>
+        {/* Delete Modal */}
+        {showDeleteConfirm && (
+          <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+            <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="delete-modal-header"><span>⚠️ Confirm Remove</span></div>
+              <div className="delete-modal-body"><p>Are you sure you want to remove <strong>{userToDelete?.name}</strong> from the team?</p><p className="warning-text">This action cannot be undone!</p></div>
+              <div className="delete-modal-footer">
+                <button className="cancel-delete-btn" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+                <button className="confirm-delete-btn" onClick={handleDeleteUser}>Remove Member</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      <style>{`
+        .team-overview-container {
+          background: rgba(15, 25, 45, 0.6);
+          backdrop-filter: blur(12px);
+          border-radius: 28px;
+          padding: 28px;
+          border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+        .team-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid rgba(0,212,255,0.3);
+          padding-bottom: 20px;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+        .team-header h3 {
+          margin: 0;
+          background: linear-gradient(135deg, #ffffff, #00d4ff);
+          background-clip: text;
+          -webkit-background-clip: text;
+          color: transparent;
+          font-weight: 700;
+        }
+        .text-muted { color: #9aa4bf !important; }
+        .stat-badge {
+          background: rgba(0,212,255,0.15);
+          padding: 8px 20px;
+          border-radius: 40px;
+          text-align: center;
+          border: 1px solid rgba(0,212,255,0.3);
+        }
+        .stat-number { font-size: 1.8rem; font-weight: 700; color: #00d4ff; display: block; }
+        .stat-label { font-size: 0.7rem; color: #b0bedb; text-transform: uppercase; }
+        .search-input, .role-filter {
+          width: 100%;
+          padding: 12px 16px;
+          background: rgba(0,0,0,0.4);
+          border: 1px solid #2a3a55;
+          border-radius: 40px;
+          color: #fff;
+          font-size: 0.9rem;
+          transition: 0.2s;
+        }
+        .search-input:focus, .role-filter:focus {
+          outline: none;
+          border-color: #00d4ff;
+          box-shadow: 0 0 12px rgba(0,212,255,0.2);
+        }
+        .refresh-btn {
+          background: rgba(0,212,255,0.15);
+          border: 1px solid rgba(0,212,255,0.3);
+          padding: 12px;
+          border-radius: 40px;
+          color: #00d4ff;
+          font-weight: 500;
+          cursor: pointer;
+        }
+        .refresh-btn:hover { background: rgba(0,212,255,0.25); }
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 20px;
+          border: 1px solid #2a3a55;
+          background: rgba(10,18,32,0.5);
+        }
+        .modern-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .modern-table th {
+          text-align: left;
+          padding: 14px 12px;
+          color: #00d4ff;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 1px solid #2a3a55;
+        }
+        .modern-table td {
+          padding: 14px 12px;
+          border-bottom: 1px solid #1e2a3a;
+          color: #cbd5e1;
+          vertical-align: middle;
+        }
+        .modern-table tbody tr:hover { background: rgba(0,212,255,0.05); }
+        .user-name { font-weight: 500; color: #fff; }
+        .designation-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
+        .bg-danger { background: #ef4444; color: white; }
+        .bg-info { background: #3b82f6; color: white; }
+        .bg-primary { background: #8b5cf6; color: white; }
+        .bg-success { background: #10b981; color: white; }
+        .bg-warning { background: #f59e0b; color: white; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 500; background: rgba(16,185,129,0.2); color: #10b981; }
+        .action-buttons { display: flex; gap: 8px; }
+        .edit-action, .delete-action {
+          background: none;
+          border: none;
+          font-size: 1.2rem;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-radius: 8px;
+          transition: 0.2s;
+        }
+        .edit-action:hover { background: rgba(0,212,255,0.15); transform: scale(1.05); }
+        .delete-action:hover { background: rgba(239,68,68,0.2); transform: scale(1.05); }
+        .empty-state { text-align: center; padding: 48px; color: #7f8fa4; }
+        /* Modals */
+        .modal-overlay {
+          position: fixed; top:0; left:0; right:0; bottom:0;
+          background: rgba(0,0,0,0.7);
+          backdrop-filter: blur(8px);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 1050;
+        }
+        .modern-modal, .delete-modal {
+          background: #0f172a;
+          border-radius: 32px;
+          border: 1px solid rgba(0,212,255,0.3);
+        }
+        .modern-modal { width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; }
+        .delete-modal { width: 90%; max-width: 450px; }
+        .modal-header {
+          display: flex; justify-content: space-between; align-items: center;
+          padding: 20px 28px; border-bottom: 1px solid #2a3a55;
+        }
+        .modal-header h3 { margin: 0; font-size: 1.3rem; color: #00d4ff; }
+        .close-btn { background: none; border: none; font-size: 2rem; cursor: pointer; color: #94a3b8; }
+        .close-btn:hover { color: #00d4ff; }
+        .modal-body { padding: 28px; }
+        .section-title {
+          font-size: 1rem; font-weight: 600; color: #00d4ff;
+          margin: 24px 0 16px 0; padding-left: 12px; border-left: 4px solid #00d4ff;
+        }
+        .section-title:first-of-type { margin-top: 0; }
+        .form-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
+        .form-grid.three-col { grid-template-columns: repeat(3,1fr); }
+        .form-field.full-width { grid-column: span 2; }
+        .form-field label {
+          display: block; font-size: 0.7rem; font-weight: 600;
+          color: #b0bedb; margin-bottom: 6px; text-transform: uppercase;
+        }
+        .form-field input, .form-field select, .form-field textarea {
+          width: 100%; padding: 10px 12px;
+          background: rgba(0,0,0,0.4); border: 1px solid #2a3a55;
+          border-radius: 20px; color: #fff; font-size: 0.9rem;
+          transition: 0.2s;
+        }
+        .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+          outline: none; border-color: #00d4ff; box-shadow: 0 0 12px rgba(0,212,255,0.2);
+        }
+        .modal-footer {
+          display: flex; justify-content: flex-end; gap: 12px;
+          padding: 20px 28px; border-top: 1px solid #2a3a55;
+        }
+        .cancel-modal-btn, .cancel-delete-btn {
+          background: #1e293b; border: none; padding: 10px 20px;
+          border-radius: 40px; color: #cbd5e1; cursor: pointer;
+        }
+        .save-modal-btn {
+          background: linear-gradient(90deg, #00b4d8, #0077b6);
+          color: white; border: none; padding: 10px 24px;
+          border-radius: 40px; font-weight: 600; cursor: pointer;
+        }
+        .confirm-delete-btn {
+          background: #dc2626; border: none; padding: 10px 20px;
+          border-radius: 40px; color: white; font-weight: 600; cursor: pointer;
+        }
+        .warning-text { color: #ef4444; font-size: 0.85rem; margin-top: 8px; }
+        @media (max-width: 768px) {
+          .team-overview-container { padding: 16px; }
+          .form-grid, .form-grid.three-col { grid-template-columns: 1fr; }
+          .form-field.full-width { grid-column: span 1; }
+          .modern-table thead { display: none; }
+          .modern-table tbody tr {
+            display: block; margin-bottom: 16px; border: 1px solid #2a3a55; border-radius: 16px; padding: 12px;
+          }
+          .modern-table td {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; border-bottom: 1px solid #1e2a3a;
+          }
+          .modern-table td::before {
+            content: attr(data-label); font-weight: 600; color: #00d4ff; width: 40%;
+          }
+          .action-buttons { justify-content: flex-end; }
+        }
+      `}</style>
     </>
   );
 }

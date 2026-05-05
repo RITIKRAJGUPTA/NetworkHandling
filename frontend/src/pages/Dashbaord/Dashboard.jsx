@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Modal, Button } from "react-bootstrap";
 import AdminDashboard from "../Dashboardpages/AdminDashboard.jsx";
 import HRDashboard from "../Dashboardpages/HRDashboard.jsx";
 import EmployerDashboard from "../Dashboardpages/EmployerDashboard.jsx";
@@ -8,6 +11,7 @@ import ManagerDashboard from "../Dashboardpages/ManagerDashboard.jsx";
 import EmployeeDashboard from "../Dashboardpages/EmployeeDashboard.jsx";
 import MyProfile from "../Dashbaord/Profile/MyProfile.jsx";
 import RoleOverviewStats from "../Dashboardpages/RoleOverviewStats.jsx";
+import SiteDataManagement from "../Dashboardpages/SiteDataManagement.jsx";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -16,6 +20,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState("overview");
   const [userId, setUserId] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,9 +39,17 @@ export default function Dashboard() {
         .then((res) => {
           setUser(res.data);
           setLoading(false);
+          toast.success(`Welcome back, ${res.data.name || userRole}!`, {
+            position: "top-right",
+            autoClose: 3000,
+          });
         })
         .catch((err) => {
           console.error("Error fetching user:", err);
+          toast.error("Failed to load profile. Please refresh the page.", {
+            position: "top-right",
+            autoClose: 5000,
+          });
           setLoading(false);
         });
     } else {
@@ -44,33 +57,31 @@ export default function Dashboard() {
     }
   }, []);
 
-  const handleLogout = () => {
-    if (window.confirm("Are you sure you want to logout?")) {
-      localStorage.clear();
-      navigate("/");
-    }
+  const handleLogoutClick = () => setShowLogoutModal(true);
+  const confirmLogout = () => {
+    localStorage.clear();
+    toast.success("Logged out successfully!", { position: "top-right", autoClose: 2000 });
+    setTimeout(() => navigate("/"), 1500);
+    setShowLogoutModal(false);
   };
+  const cancelLogout = () => setShowLogoutModal(false);
 
-  if (loading) {
-    return <div className="container mt-4">Loading dashboard...</div>;
-  }
+  if (loading) return <div className="container mt-4">Loading dashboard...</div>;
 
   const getMenuItems = () => {
     const commonMenus = [
       { id: "overview", label: "Overview", icon: "📊" },
       { id: "profile", label: "My Profile", icon: "👤" },
     ];
-
     const roleSpecificMenus = {
       admin: [
         { id: "users", label: "Manage Users", icon: "👥" },
         { id: "settings", label: "System Settings", icon: "⚙️" },
         { id: "reports", label: "View Reports", icon: "📈" },
-        // { id: "roles", label: "Manage Roles", icon: "🔑" },
+        { id: "site-data", label: "Site Data", icon: "📍" },
       ],
       hr: [
         { id: "employees", label: "Employee Management", icon: "👔" },
-        // { id: "recruitment", label: "Recruitment", icon: "📝" },
         { id: "leave", label: "Leave Approvals", icon: "📅" },
         { id: "attendance", label: "Attendance", icon: "⏰" },
       ],
@@ -85,47 +96,39 @@ export default function Dashboard() {
         { id: "tasks", label: "Task Assignments", icon: "✅" },
         { id: "performance", label: "Performance", icon: "📈" },
         { id: "leave-team", label: "Leave Requests", icon: "📅" },
+        { id: "site-data", label: "Site Data", icon: "📍" },
       ],
       employee: [
         { id: "my-tasks", label: "My Tasks", icon: "📌" },
         { id: "attendance", label: "Attendance", icon: "⏰" },
         { id: "leave-request", label: "Leave Request", icon: "📝" },
         { id: "performance", label: "My Performance", icon: "📊" },
-        // { id: "reviews", label: "Performance Reviews", icon: "⭐" },
+         { id: "site-data", label: "Site Data", icon: "📍" },
       ],
     };
-
     return [...commonMenus, ...(roleSpecificMenus[role] || [])];
   };
 
   const renderMainContent = () => {
-    if (activeMenu === "profile") {
-      return <MyProfile userId={userId} />;
-    }
-
+    if (activeMenu === "profile") return <MyProfile userId={userId} />;
     if (activeMenu === "overview") {
       switch (role) {
-        case "admin":
-          return <AdminDashboard activeMenu={activeMenu} />;
-        case "hr":
-          return <HRDashboard activeMenu={activeMenu} />;
-        case "employer":
-          return <EmployerDashboard activeMenu={activeMenu} />;
-        case "manager":
-          return <ManagerDashboard activeMenu={activeMenu} />;
-        case "employee":
-          return <EmployeeDashboard user={user} activeMenu={activeMenu} />;
-        default:
-          return <div className="alert alert-danger">Invalid role: {role}</div>;
+        case "admin": return <AdminDashboard activeMenu={activeMenu} />;
+        case "hr": return <HRDashboard activeMenu={activeMenu} />;
+        case "employer": return <EmployerDashboard activeMenu={activeMenu} />;
+        case "manager": return <ManagerDashboard activeMenu={activeMenu} />;
+        case "employee": return <EmployeeDashboard user={user} activeMenu={activeMenu} />;
+        default: return <div className="alert alert-danger">Invalid role: {role}</div>;
       }
     }
-
     if (role === "admin") return <AdminDashboard activeMenu={activeMenu} />;
     if (role === "manager") return <ManagerDashboard activeMenu={activeMenu} managerId={userId} />;
     if (role === "hr") return <HRDashboard activeMenu={activeMenu} />;
     if (role === "employer") return <EmployerDashboard activeMenu={activeMenu} />;
     if (role === "employee") return <EmployeeDashboard user={user} activeMenu={activeMenu} />;
-
+    if (activeMenu === "site-data") {
+  return <SiteDataManagement />;
+}
     return (
       <div className="content-card">
         <h3>{getMenuItems().find((item) => item.id === activeMenu)?.label}</h3>
@@ -137,57 +140,66 @@ export default function Dashboard() {
   const menuItems = getMenuItems();
 
   return (
-    <div className="dashboard-container">
-      <nav className="dashboard-navbar">
-        <div className="navbar-brand">
-          <h3>✨ HRMS Dashboard</h3>
+    <>
+      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <div className="snoc-dashboard-container">
+        {/* Animated background matching login/register */}
+        <div className="bg-animation">
+          <div className="grid-lines"></div>
+          <div className="floating-particles"></div>
+          <div className="pulse-ring"></div>
         </div>
-        <div className="navbar-user">
-          <span className="user-role-badge">{role?.toUpperCase()}</span>
-          <span className="user-name">{user?.name || role}</span>
-          <button className="logout-btn" onClick={handleLogout}>
-            Logout
-          </button>
+
+        <nav className="dashboard-navbar">
+          <div className="navbar-brand"><h3>✨ SNOC Networking | Operations Hub</h3></div>
+          <div className="navbar-user">
+            <span className="user-role-badge">{role?.toUpperCase()}</span>
+            <span className="user-name">{user?.name || role}</span>
+            <button className="logout-btn" onClick={handleLogoutClick}>Logout</button>
+          </div>
+        </nav>
+
+        <div className="dashboard-layout">
+          <aside className="dashboard-sidebar">
+            <ul className="sidebar-menu">
+              {menuItems.map((item) => (
+                <li key={item.id} className={`sidebar-item ${activeMenu === item.id ? "active" : ""}`} onClick={() => setActiveMenu(item.id)}>
+                  <span className="menu-icon">{item.icon}</span>
+                  <span className="menu-label">{item.label}</span>
+                </li>
+              ))}
+            </ul>
+          </aside>
+
+          <main className="dashboard-main">
+            {activeMenu !== "profile" && (
+              <div className="welcome-section">
+                <div className="welcome-header">
+                  <div>
+                    <h2>Welcome, {user?.name || role}!</h2>
+                    <p className="text-muted">SNOC Networking – managing operations efficiently.</p>
+                  </div>
+                  <div className="welcome-date">
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </div>
+                </div>
+                {activeMenu === "overview" && <RoleOverviewStats role={role} userId={userId} />}
+              </div>
+            )}
+            <div className="main-content-area">{renderMainContent()}</div>
+          </main>
         </div>
-      </nav>
 
-      <div className="dashboard-layout">
-        <aside className="dashboard-sidebar">
-          <ul className="sidebar-menu">
-            {menuItems.map((item) => (
-              <li
-                key={item.id}
-                className={`sidebar-item ${activeMenu === item.id ? "active" : ""}`}
-                onClick={() => setActiveMenu(item.id)}
-              >
-                <span className="menu-icon">{item.icon}</span>
-                <span className="menu-label">{item.label}</span>
-              </li>
-            ))}
-          </ul>
-        </aside>
-
-        <main className="dashboard-main">
-          {activeMenu !== "profile" && (
-            <div className="welcome-section">
-  <div className="welcome-header">
-    <div>
-      <h2>Welcome, {user?.name || role}!</h2>
-      <p className="text-muted">Here's what's happening with your {role} dashboard today.</p>
-    </div>
-    <div className="welcome-date">
-      {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-    </div>
-  </div>
-  {/* Stats cards – only on overview menu */}
-  {activeMenu === "overview" && (
-    <RoleOverviewStats role={role} userId={userId} />
-  )}
-</div>
-          )}
-          <div className="main-content-area">{renderMainContent()}</div>
-        </main>
+        {/* Logout Modal */}
+        <Modal show={showLogoutModal} onHide={cancelLogout} centered className="logout-modal">
+          <Modal.Header closeButton><Modal.Title>Confirm Logout</Modal.Title></Modal.Header>
+          <Modal.Body><p>Are you sure you want to logout?</p></Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={cancelLogout} className="cancel-logout-btn">Cancel</Button>
+            <Button variant="danger" onClick={confirmLogout} className="confirm-logout-btn">Logout</Button>
+          </Modal.Footer>
+        </Modal>
       </div>
-    </div>
+    </>
   );
 }
