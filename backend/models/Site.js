@@ -13,6 +13,7 @@ const siteSchema = new mongoose.Schema({
   solarType: { type: String, enum: ["enable", "not enable"], required: true },
   ebType: { type: String, enum: ["permanent", "temporary"], required: true },
   rackType: { type: String, enum: ["block", "gp"], required: true },
+  ringNumber: { type: String, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 }, { timestamps: true });

@@ -17,14 +17,14 @@ export default function SiteDataManagement() {
   const [formData, setFormData] = useState({
     state: "", district: "", block: "", gp: "", latitude: "", longitude: "",
     mgmtIpAddress: "", exicomDeviceId: "", blockCode: "",
-    solarType: "not enable", ebType: "temporary", rackType: "block"
+    solarType: "not enable", ebType: "temporary", rackType: "block",
+    ringNumber: ""   // <-- NEW FIELD
   });
   const [submitting, setSubmitting] = useState(false);
 
   const token = localStorage.getItem("token");
   const axiosConfig = { headers: { Authorization: `Bearer ${token}` } };
 
-  // Check user permissions based on role & designation
   const checkPermissions = async () => {
     try {
       const userId = localStorage.getItem("userId");
@@ -33,10 +33,10 @@ export default function SiteDataManagement() {
       if (user.role === "employee") {
         if (user.designation === "FE") {
           setCanCreate(true);
-          setCanEdit(false);   // FE cannot edit/delete
+          setCanEdit(false);
         } else if (user.designation === "team lead" || user.designation === "L2") {
           setCanCreate(false);
-          setCanEdit(true);     // Team Lead or L2 can edit/delete
+          setCanEdit(true);
         } else {
           setCanCreate(false);
           setCanEdit(false);
@@ -100,7 +100,8 @@ export default function SiteDataManagement() {
     setFormData({
       state: "", district: "", block: "", gp: "", latitude: "", longitude: "",
       mgmtIpAddress: "", exicomDeviceId: "", blockCode: "",
-      solarType: "not enable", ebType: "temporary", rackType: "block"
+      solarType: "not enable", ebType: "temporary", rackType: "block",
+      ringNumber: ""   // <-- NEW FIELD
     });
   };
 
@@ -111,7 +112,8 @@ export default function SiteDataManagement() {
       state: site.state, district: site.district, block: site.block, gp: site.gp,
       latitude: site.latitude, longitude: site.longitude,
       mgmtIpAddress: site.mgmtIpAddress, exicomDeviceId: site.exicomDeviceId,
-      blockCode: site.blockCode, solarType: site.solarType, ebType: site.ebType, rackType: site.rackType
+      blockCode: site.blockCode, solarType: site.solarType, ebType: site.ebType, rackType: site.rackType,
+      ringNumber: site.ringNumber   // <-- NEW FIELD
     });
     setShowModal(true);
   };
@@ -128,13 +130,11 @@ export default function SiteDataManagement() {
     }
   };
 
-  // Export to Excel
   const exportToExcel = () => {
     if (sites.length === 0) {
       toast.warning("No data to export");
       return;
     }
-
     const exportData = sites.map(site => ({
       "State": site.state,
       "District": site.district,
@@ -148,11 +148,11 @@ export default function SiteDataManagement() {
       "Solar Type": site.solarType,
       "EB Type": site.ebType,
       "Rack Type": site.rackType,
+      "Ring Number": site.ringNumber,   // <-- NEW FIELD
       "Created By": site.createdBy?.name || "N/A",
       "Created At": new Date(site.createdAt).toLocaleString(),
       "Last Updated": new Date(site.updatedAt).toLocaleString()
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Site_Data");
@@ -189,8 +189,8 @@ export default function SiteDataManagement() {
                 <tr>
                   <th>State</th><th>District</th><th>Block</th><th>GP</th>
                   <th>Latitude</th><th>Longitude</th><th>MGMT IP</th>
-                  <th>Exicom ID</th><th>Block Code</th><th>Solar</th><th>EB Type</th><th>Rack</th>
-                  <th>Actions</th>
+                  <th>Exicom ID</th><th>Block Code</th><th>Solar</th><th>EB Type</th>
+                  <th>Rack</th><th>Ring Number</th><th>Actions</th>   {/* <-- NEW COLUMN HEADER */}
                 </tr>
               </thead>
               <tbody>
@@ -208,6 +208,7 @@ export default function SiteDataManagement() {
                     <td data-label="Solar">{site.solarType}</td>
                     <td data-label="EB Type">{site.ebType}</td>
                     <td data-label="Rack">{site.rackType}</td>
+                    <td data-label="Ring Number">{site.ringNumber || "—"}</td>   {/* <-- NEW CELL */}
                     <td data-label="Actions">
                       {canEdit && (
                         <div className="action-buttons">
@@ -235,6 +236,7 @@ export default function SiteDataManagement() {
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
                   <div className="form-grid">
+                    {/* existing fields */}
                     <div className="form-field"><label>State *</label><input type="text" name="state" value={formData.state} onChange={handleChange} required /></div>
                     <div className="form-field"><label>District *</label><input type="text" name="district" value={formData.district} onChange={handleChange} required /></div>
                     <div className="form-field"><label>Block *</label><input type="text" name="block" value={formData.block} onChange={handleChange} required /></div>
@@ -247,6 +249,8 @@ export default function SiteDataManagement() {
                     <div className="form-field"><label>Solar Type</label><select name="solarType" value={formData.solarType} onChange={handleChange}><option value="enable">Enable</option><option value="not enable">Not Enable</option></select></div>
                     <div className="form-field"><label>EB Type</label><select name="ebType" value={formData.ebType} onChange={handleChange}><option value="permanent">Permanent</option><option value="temporary">Temporary</option></select></div>
                     <div className="form-field"><label>Rack Type</label><select name="rackType" value={formData.rackType} onChange={handleChange}><option value="block">Block</option><option value="gp">GP</option></select></div>
+                    {/* NEW RING NUMBER FIELD */}
+                    <div className="form-field"><label>Ring Number *</label><input type="text" name="ringNumber" value={formData.ringNumber} onChange={handleChange} required /></div>
                   </div>
                 </div>
                 <div className="modal-footer">
