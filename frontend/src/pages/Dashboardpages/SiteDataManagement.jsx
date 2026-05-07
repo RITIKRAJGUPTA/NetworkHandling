@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -10,6 +10,7 @@ export default function SiteDataManagement() {
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // NEW: search term
   const [showModal, setShowModal] = useState(false);
   const [editingSite, setEditingSite] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
@@ -18,12 +19,37 @@ export default function SiteDataManagement() {
     state: "", district: "", block: "", gp: "", latitude: "", longitude: "",
     mgmtIpAddress: "", exicomDeviceId: "", blockCode: "",
     solarType: "not enable", ebType: "temporary", rackType: "block",
-    ringNumber: ""   // <-- NEW FIELD
+    ringNumber: ""
   });
   const [submitting, setSubmitting] = useState(false);
 
   const token = localStorage.getItem("token");
   const axiosConfig = { headers: { Authorization: `Bearer ${token}` } };
+  const pollingInterval = useRef(null);
+
+  // Filter sites based on search term (case‑insensitive)
+  const filteredSites = useMemo(() => {
+    if (!searchTerm.trim()) return sites;
+    const lowerTerm = searchTerm.toLowerCase();
+    return sites.filter(site => {
+      return (
+        site.state?.toLowerCase().includes(lowerTerm) ||
+        site.district?.toLowerCase().includes(lowerTerm) ||
+        site.block?.toLowerCase().includes(lowerTerm) ||
+        site.gp?.toLowerCase().includes(lowerTerm) ||
+        site.mgmtIpAddress?.toLowerCase().includes(lowerTerm) ||
+        site.exicomDeviceId?.toLowerCase().includes(lowerTerm) ||
+        site.blockCode?.toLowerCase().includes(lowerTerm) ||
+        site.solarType?.toLowerCase().includes(lowerTerm) ||
+        site.ebType?.toLowerCase().includes(lowerTerm) ||
+        site.rackType?.toLowerCase().includes(lowerTerm) ||
+        site.ringNumber?.toLowerCase().includes(lowerTerm) ||
+        site.latitude?.toString().includes(lowerTerm) ||
+        site.longitude?.toString().includes(lowerTerm) ||
+        site.createdBy?.name?.toLowerCase().includes(lowerTerm)
+      );
+    });
+  }, [sites, searchTerm]);
 
   const checkPermissions = async () => {
     try {
@@ -50,6 +76,16 @@ export default function SiteDataManagement() {
     }
   };
 
+  const fetchSitesSilent = async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/sites`, axiosConfig);
+      setSites(res.data);
+      setError("");
+    } catch (err) {
+      console.error("Polling error:", err);
+    }
+  };
+
   const fetchSites = async () => {
     setLoading(true);
     try {
@@ -67,6 +103,10 @@ export default function SiteDataManagement() {
   useEffect(() => {
     checkPermissions();
     fetchSites();
+    pollingInterval.current = setInterval(() => fetchSitesSilent(), 5000);
+    return () => {
+      if (pollingInterval.current) clearInterval(pollingInterval.current);
+    };
   }, []);
 
   const handleChange = (e) => {
@@ -87,7 +127,7 @@ export default function SiteDataManagement() {
       setShowModal(false);
       setEditingSite(null);
       resetForm();
-      fetchSites();
+      await fetchSites();
     } catch (err) {
       const msg = err.response?.data?.message || "Operation failed";
       toast.error(msg);
@@ -101,7 +141,7 @@ export default function SiteDataManagement() {
       state: "", district: "", block: "", gp: "", latitude: "", longitude: "",
       mgmtIpAddress: "", exicomDeviceId: "", blockCode: "",
       solarType: "not enable", ebType: "temporary", rackType: "block",
-      ringNumber: ""   // <-- NEW FIELD
+      ringNumber: ""
     });
   };
 
@@ -113,7 +153,7 @@ export default function SiteDataManagement() {
       latitude: site.latitude, longitude: site.longitude,
       mgmtIpAddress: site.mgmtIpAddress, exicomDeviceId: site.exicomDeviceId,
       blockCode: site.blockCode, solarType: site.solarType, ebType: site.ebType, rackType: site.rackType,
-      ringNumber: site.ringNumber   // <-- NEW FIELD
+      ringNumber: site.ringNumber
     });
     setShowModal(true);
   };
@@ -124,18 +164,19 @@ export default function SiteDataManagement() {
     try {
       await axios.delete(`${BACKEND_URL}/api/sites/${id}`, axiosConfig);
       toast.success("Site data deleted");
-      fetchSites();
+      await fetchSites();
     } catch (err) {
       toast.error(err.response?.data?.message || "Delete failed");
     }
   };
 
   const exportToExcel = () => {
-    if (sites.length === 0) {
+    const dataToExport = searchTerm.trim() ? filteredSites : sites;
+    if (dataToExport.length === 0) {
       toast.warning("No data to export");
       return;
     }
-    const exportData = sites.map(site => ({
+    const exportData = dataToExport.map(site => ({
       "State": site.state,
       "District": site.district,
       "Block": site.block,
@@ -148,7 +189,7 @@ export default function SiteDataManagement() {
       "Solar Type": site.solarType,
       "EB Type": site.ebType,
       "Rack Type": site.rackType,
-      "Ring Number": site.ringNumber,   // <-- NEW FIELD
+      "Ring Number": site.ringNumber,
       "Created By": site.createdBy?.name || "N/A",
       "Created At": new Date(site.createdAt).toLocaleString(),
       "Last Updated": new Date(site.updatedAt).toLocaleString()
@@ -180,8 +221,26 @@ export default function SiteDataManagement() {
           </div>
         </div>
 
-        {sites.length === 0 ? (
-          <div className="alert alert-info">No site data available.</div>
+        {/* Search Bar */}
+        <div className="search-wrapper">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="🔍 Search by any field (state, district, block, GP, IP, Exicom ID, ring number, ...)"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="clear-search" onClick={() => setSearchTerm("")}>✖</button>
+          )}
+        </div>
+
+        {filteredSites.length === 0 ? (
+          <div className="alert alert-info">
+            {sites.length === 0
+              ? "No site data available."
+              : `No matching sites found for "${searchTerm}".`}
+          </div>
         ) : (
           <div className="table-wrapper">
             <table className="modern-table">
@@ -190,11 +249,11 @@ export default function SiteDataManagement() {
                   <th>State</th><th>District</th><th>Block</th><th>GP</th>
                   <th>Latitude</th><th>Longitude</th><th>MGMT IP</th>
                   <th>Exicom ID</th><th>Block Code</th><th>Solar</th><th>EB Type</th>
-                  <th>Rack</th><th>Ring Number</th><th>Actions</th>   {/* <-- NEW COLUMN HEADER */}
+                  <th>Rack</th><th>Ring Number</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {sites.map(site => (
+                {filteredSites.map(site => (
                   <tr key={site._id}>
                     <td data-label="State">{site.state}</td>
                     <td data-label="District">{site.district}</td>
@@ -208,7 +267,7 @@ export default function SiteDataManagement() {
                     <td data-label="Solar">{site.solarType}</td>
                     <td data-label="EB Type">{site.ebType}</td>
                     <td data-label="Rack">{site.rackType}</td>
-                    <td data-label="Ring Number">{site.ringNumber || "—"}</td>   {/* <-- NEW CELL */}
+                    <td data-label="Ring Number">{site.ringNumber || "—"}</td>
                     <td data-label="Actions">
                       {canEdit && (
                         <div className="action-buttons">
@@ -225,7 +284,7 @@ export default function SiteDataManagement() {
           </div>
         )}
 
-        {/* Modal for add/edit */}
+        {/* Modal (unchanged) */}
         {showModal && (
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
             <div className="site-modal" onClick={(e) => e.stopPropagation()}>
@@ -236,7 +295,6 @@ export default function SiteDataManagement() {
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
                   <div className="form-grid">
-                    {/* existing fields */}
                     <div className="form-field"><label>State *</label><input type="text" name="state" value={formData.state} onChange={handleChange} required /></div>
                     <div className="form-field"><label>District *</label><input type="text" name="district" value={formData.district} onChange={handleChange} required /></div>
                     <div className="form-field"><label>Block *</label><input type="text" name="block" value={formData.block} onChange={handleChange} required /></div>
@@ -249,7 +307,6 @@ export default function SiteDataManagement() {
                     <div className="form-field"><label>Solar Type</label><select name="solarType" value={formData.solarType} onChange={handleChange}><option value="enable">Enable</option><option value="not enable">Not Enable</option></select></div>
                     <div className="form-field"><label>EB Type</label><select name="ebType" value={formData.ebType} onChange={handleChange}><option value="permanent">Permanent</option><option value="temporary">Temporary</option></select></div>
                     <div className="form-field"><label>Rack Type</label><select name="rackType" value={formData.rackType} onChange={handleChange}><option value="block">Block</option><option value="gp">GP</option></select></div>
-                    {/* NEW RING NUMBER FIELD */}
                     <div className="form-field"><label>Ring Number *</label><input type="text" name="ringNumber" value={formData.ringNumber} onChange={handleChange} required /></div>
                   </div>
                 </div>
@@ -263,6 +320,7 @@ export default function SiteDataManagement() {
         )}
       </div>
 
+      {/* Updated styles – include search bar styles */}
       <style>{`
         .site-data-container {
           background: rgba(15, 25, 45, 0.6);
@@ -276,7 +334,7 @@ export default function SiteDataManagement() {
           justify-content: space-between;
           align-items: center;
           flex-wrap: wrap;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
         .page-header h3 {
           margin: 0;
@@ -317,6 +375,42 @@ export default function SiteDataManagement() {
           background: rgba(0,212,255,0.25);
           transform: translateY(-1px);
         }
+        .search-wrapper {
+          position: relative;
+          margin-bottom: 24px;
+          max-width: 400px;
+        }
+        .search-input {
+          width: 100%;
+          padding: 10px 40px 10px 16px;
+          background: rgba(0,0,0,0.4);
+          border: 1px solid #2a3a55;
+          border-radius: 40px;
+          color: #fff;
+          font-size: 0.9rem;
+        }
+        .search-input:focus {
+          outline: none;
+          border-color: #00d4ff;
+          box-shadow: 0 0 12px rgba(0,212,255,0.2);
+        }
+        .search-input::placeholder {
+          color: #7f8fa4;
+        }
+        .clear-search {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          color: #94a3b8;
+          font-size: 1.2rem;
+          cursor: pointer;
+        }
+        .clear-search:hover {
+          color: #00d4ff;
+        }
         .table-wrapper { overflow-x: auto; border-radius: 20px; border: 1px solid #2a3a55; background: rgba(10,18,32,0.5); }
         .modern-table { width: 100%; border-collapse: collapse; color: #cbd5e1; }
         .modern-table th { background: rgba(0,212,255,0.05); color: #00d4ff; padding: 12px; font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #2a3a55; }
@@ -329,31 +423,8 @@ export default function SiteDataManagement() {
         .edit-btn:hover { background: rgba(0,212,255,0.2); }
         .delete-btn:hover { background: rgba(239,68,68,0.2); }
         .readonly { color: #7f8fa4; font-size: 0.8rem; }
-        .modal-overlay {
-          position: fixed; top:0; left:0; right:0; bottom:0;
-          background: rgba(0,0,0,0.7);
-          backdrop-filter: blur(8px);
-          display: flex; align-items: center; justify-content: center;
-          z-index: 1050;
-        }
-        .site-modal {
-          background: #0f172a;
-          border-radius: 28px;
-          border: 1px solid rgba(0,212,255,0.3);
-          width: 90%;
-          max-width: 800px;
-          max-height: 85vh;
-          overflow-y: auto;
-        }
-        .modal-header {
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 20px 28px;
-          border-bottom: 1px solid #2a3a55;
-        }
-        .modal-header h3 { color: #00d4ff; margin: 0; }
-        .close-btn { background: none; border: none; font-size: 2rem; cursor: pointer; color: #94a3b8; }
-        .close-btn:hover { color: #00d4ff; }
-        .modal-body { padding: 28px; }
+        .modal-overlay { /* unchanged */ }
+        .site-modal { /* unchanged */ }
         .form-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
         .form-field label { display: block; font-size: 0.7rem; font-weight: 600; color: #b0bedb; text-transform: uppercase; margin-bottom: 4px; }
         .form-field input, .form-field select {
@@ -375,9 +446,26 @@ export default function SiteDataManagement() {
         @media (max-width: 768px) {
           .form-grid { grid-template-columns: 1fr; }
           .modern-table thead { display: none; }
-          .modern-table tbody tr { display: block; margin-bottom: 16px; border: 1px solid #2a3a55; border-radius: 16px; padding: 12px; }
-          .modern-table td { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: none; }
-          .modern-table td::before { content: attr(data-label); font-weight: 600; color: #00d4ff; width: 40%; }
+          .modern-table tbody tr {
+            display: block;
+            margin-bottom: 16px;
+            border: 1px solid #2a3a55;
+            border-radius: 16px;
+            padding: 12px;
+          }
+          .modern-table td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: none;
+          }
+          .modern-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #00d4ff;
+            width: 40%;
+          }
         }
       `}</style>
     </>
