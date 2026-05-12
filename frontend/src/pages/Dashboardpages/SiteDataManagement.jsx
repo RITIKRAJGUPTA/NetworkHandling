@@ -10,7 +10,7 @@ export default function SiteDataManagement() {
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState(""); // NEW: search term
+  const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingSite, setEditingSite] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
@@ -27,7 +27,24 @@ export default function SiteDataManagement() {
   const axiosConfig = { headers: { Authorization: `Bearer ${token}` } };
   const pollingInterval = useRef(null);
 
-  // Filter sites based on search term (case‑insensitive)
+  const getDateKey = (date) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const groupSitesByDate = (sitesList) => {
+    const today = getDateKey(new Date());
+    const yesterday = getDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const groups = { today: [], yesterday: [], older: [] };
+    sitesList.forEach(site => {
+      const key = getDateKey(site.createdAt);
+      if (key === today) groups.today.push(site);
+      else if (key === yesterday) groups.yesterday.push(site);
+      else groups.older.push(site);
+    });
+    return groups;
+  };
+
   const filteredSites = useMemo(() => {
     if (!searchTerm.trim()) return sites;
     const lowerTerm = searchTerm.toLowerCase();
@@ -50,6 +67,8 @@ export default function SiteDataManagement() {
       );
     });
   }, [sites, searchTerm]);
+
+  const groupedSites = useMemo(() => groupSitesByDate(filteredSites), [filteredSites]);
 
   const checkPermissions = async () => {
     try {
@@ -201,6 +220,88 @@ export default function SiteDataManagement() {
     toast.success("Excel report downloaded successfully!");
   };
 
+  const renderTableSection = (title, sitesArray) => {
+  if (sitesArray.length === 0) return null;
+
+  const isToday = title === "Today's Sites";
+
+  return (
+    <div className="table-section" key={title}>
+      <h4 className="section-title">
+        {title}
+        {isToday && <span className="today-badge">🆕 New</span>}
+      </h4>
+
+      <div className="table-wrapper">
+        <table className="modern-table">
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>District</th>
+              <th>Block</th>
+              <th>GP</th>
+              <th>Latitude</th>
+              <th>Longitude</th>
+              <th>MGMT IP</th>
+              <th>Exicom ID</th>
+              <th>Block Code</th>
+              <th>Solar</th>
+              <th>EB Type</th>
+              <th>Rack</th>
+              <th>Ring Number</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {sitesArray.map((site) => (
+              <tr key={site._id} className={isToday ? "today-row" : ""}>
+                <td data-label="State">{site.state}</td>
+                <td data-label="District">{site.district}</td>
+                <td data-label="Block">{site.block}</td>
+                <td data-label="GP">{site.gp}</td>
+                <td data-label="Latitude">{site.latitude}</td>
+                <td data-label="Longitude">{site.longitude}</td>
+                <td data-label="MGMT IP">{site.mgmtIpAddress}</td>
+                <td data-label="Exicom ID">{site.exicomDeviceId}</td>
+                <td data-label="Block Code">{site.blockCode}</td>
+                <td data-label="Solar">{site.solarType}</td>
+                <td data-label="EB Type">{site.ebType}</td>
+                <td data-label="Rack">{site.rackType}</td>
+                <td data-label="Ring Number">
+                  {site.ringNumber || "—"}
+                </td>
+
+                <td data-label="Actions">
+                  {canEdit ? (
+                    <div className="action-buttons">
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(site)}
+                      >
+                        ✏️
+                      </button>
+
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(site._id)}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="readonly">View only</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
   if (loading) return <div className="text-center py-5"><div className="spinner-border text-info"></div><p>Loading site data...</p></div>;
   if (error) return <div className="alert alert-danger">{error}</div>;
 
@@ -214,77 +315,34 @@ export default function SiteDataManagement() {
             <p>Manage site locations, network devices, and power configurations</p>
           </div>
           <div className="header-buttons">
-            {canCreate && (
-              <button className="add-btn" onClick={() => setShowModal(true)}>+ Add New Site</button>
-            )}
+            {canCreate && <button className="add-btn" onClick={() => setShowModal(true)}>+ Add New Site</button>}
             <button className="export-btn" onClick={exportToExcel}>📊 Export Excel</button>
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="search-wrapper">
           <input
             type="text"
             className="search-input"
-            placeholder="🔍 Search by any field (state, district, block, GP, IP, Exicom ID, ring number, ...)"
+            placeholder="🔍 Search by any field..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {searchTerm && (
-            <button className="clear-search" onClick={() => setSearchTerm("")}>✖</button>
-          )}
+          {searchTerm && <button className="clear-search" onClick={() => setSearchTerm("")}>✖</button>}
         </div>
 
         {filteredSites.length === 0 ? (
           <div className="alert alert-info">
-            {sites.length === 0
-              ? "No site data available."
-              : `No matching sites found for "${searchTerm}".`}
+            {sites.length === 0 ? "No site data available." : `No matching sites found for "${searchTerm}".`}
           </div>
         ) : (
-          <div className="table-wrapper">
-            <table className="modern-table">
-              <thead>
-                <tr>
-                  <th>State</th><th>District</th><th>Block</th><th>GP</th>
-                  <th>Latitude</th><th>Longitude</th><th>MGMT IP</th>
-                  <th>Exicom ID</th><th>Block Code</th><th>Solar</th><th>EB Type</th>
-                  <th>Rack</th><th>Ring Number</th><th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSites.map(site => (
-                  <tr key={site._id}>
-                    <td data-label="State">{site.state}</td>
-                    <td data-label="District">{site.district}</td>
-                    <td data-label="Block">{site.block}</td>
-                    <td data-label="GP">{site.gp}</td>
-                    <td data-label="Latitude">{site.latitude}</td>
-                    <td data-label="Longitude">{site.longitude}</td>
-                    <td data-label="MGMT IP">{site.mgmtIpAddress}</td>
-                    <td data-label="Exicom ID">{site.exicomDeviceId}</td>
-                    <td data-label="Block Code">{site.blockCode}</td>
-                    <td data-label="Solar">{site.solarType}</td>
-                    <td data-label="EB Type">{site.ebType}</td>
-                    <td data-label="Rack">{site.rackType}</td>
-                    <td data-label="Ring Number">{site.ringNumber || "—"}</td>
-                    <td data-label="Actions">
-                      {canEdit && (
-                        <div className="action-buttons">
-                          <button className="edit-btn" onClick={() => handleEdit(site)}>✏️</button>
-                          <button className="delete-btn" onClick={() => handleDelete(site._id)}>🗑️</button>
-                        </div>
-                      )}
-                      {!canEdit && <span className="readonly">View only</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grouped-sections">
+            {renderTableSection("Today's Sites", groupedSites.today)}
+            {renderTableSection("Yesterday's Sites", groupedSites.yesterday)}
+            {renderTableSection("Older Sites", groupedSites.older)}
           </div>
         )}
 
-        {/* Modal (unchanged) */}
         {showModal && (
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
             <div className="site-modal" onClick={(e) => e.stopPropagation()}>
@@ -320,7 +378,6 @@ export default function SiteDataManagement() {
         )}
       </div>
 
-      {/* Updated styles – include search bar styles */}
       <style>{`
         .site-data-container {
           background: rgba(15, 25, 45, 0.6);
@@ -394,9 +451,6 @@ export default function SiteDataManagement() {
           border-color: #00d4ff;
           box-shadow: 0 0 12px rgba(0,212,255,0.2);
         }
-        .search-input::placeholder {
-          color: #7f8fa4;
-        }
         .clear-search {
           position: absolute;
           right: 12px;
@@ -408,25 +462,131 @@ export default function SiteDataManagement() {
           font-size: 1.2rem;
           cursor: pointer;
         }
-        .clear-search:hover {
-          color: #00d4ff;
+        .clear-search:hover { color: #00d4ff; }
+        .grouped-sections {
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
         }
-        .table-wrapper { overflow-x: auto; border-radius: 20px; border: 1px solid #2a3a55; background: rgba(10,18,32,0.5); }
-        .modern-table { width: 100%; border-collapse: collapse; color: #cbd5e1; }
-        .modern-table th { background: rgba(0,212,255,0.05); color: #00d4ff; padding: 12px; font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #2a3a55; }
-        .modern-table td { padding: 10px 12px; border-bottom: 1px solid #1e2a3a; }
-        .modern-table tbody tr:hover { background: rgba(0,212,255,0.05); }
-        .action-buttons { display: flex; gap: 8px; }
-        .edit-btn, .delete-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+        .table-section h4 {
+          font-size: 1.2rem;
+          font-weight: 600;
+          margin-bottom: 16px;
+          color: #00d4ff;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .today-badge {
+          background: rgba(0,212,255,0.2);
+          color: #00d4ff;
+          font-size: 0.7rem;
+          padding: 2px 10px;
+          border-radius: 20px;
+          font-weight: 500;
+        }
+        .today-row {
+          background: rgba(0,212,255,0.05);
+          border-left: 3px solid #00d4ff;
+        }
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 20px;
+          border: 1px solid #2a3a55;
+          background: rgba(10,18,32,0.5);
+        }
+        .modern-table {
+          width: 100%;
+          border-collapse: collapse;
+          color: #cbd5e1;
+        }
+        .modern-table th {
+          background: rgba(0,212,255,0.05);
+          color: #00d4ff;
+          padding: 12px;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          border-bottom: 1px solid #2a3a55;
+        }
+        .modern-table td {
+          padding: 10px 12px;
+          border-bottom: 1px solid #1e2a3a;
+        }
+        .modern-table tbody tr:hover {
+          background: rgba(0,212,255,0.05);
+        }
+        .action-buttons {
+          display: flex;
+          gap: 8px;
+        }
+        .edit-btn, .delete-btn {
+          background: none;
+          border: none;
+          font-size: 1.1rem;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-radius: 8px;
+        }
         .edit-btn { color: #00d4ff; }
         .delete-btn { color: #ef4444; }
         .edit-btn:hover { background: rgba(0,212,255,0.2); }
         .delete-btn:hover { background: rgba(239,68,68,0.2); }
-        .readonly { color: #7f8fa4; font-size: 0.8rem; }
-        .modal-overlay { /* unchanged */ }
-        .site-modal { /* unchanged */ }
-        .form-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
-        .form-field label { display: block; font-size: 0.7rem; font-weight: 600; color: #b0bedb; text-transform: uppercase; margin-bottom: 4px; }
+        .readonly {
+          color: #7f8fa4;
+          font-size: 0.8rem;
+        }
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.7);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1050;
+        }
+        .site-modal {
+          background: #0f172a;
+          border-radius: 28px;
+          border: 1px solid rgba(0,212,255,0.3);
+          width: 90%;
+          max-width: 800px;
+          max-height: 85vh;
+          overflow-y: auto;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px 28px;
+          border-bottom: 1px solid #2a3a55;
+        }
+        .modal-header h3 { color: #00d4ff; margin: 0; }
+        .close-btn {
+          background: none;
+          border: none;
+          font-size: 2rem;
+          cursor: pointer;
+          color: #94a3b8;
+        }
+        .close-btn:hover { color: #00d4ff; }
+        .modal-body { padding: 28px; }
+        .form-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 20px;
+        }
+        .form-field label {
+          display: block;
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: #b0bedb;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
         .form-field input, .form-field select {
           width: 100%;
           padding: 10px;
@@ -437,12 +597,29 @@ export default function SiteDataManagement() {
         }
         .form-field input:focus, .form-field select:focus { outline: none; border-color: #00d4ff; box-shadow: 0 0 12px rgba(0,212,255,0.2); }
         .modal-footer {
-          display: flex; justify-content: flex-end; gap: 12px;
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
           padding: 20px 28px;
           border-top: 1px solid #2a3a55;
         }
-        .cancel-btn { background: #1e293b; border: none; color: #cbd5e1; padding: 8px 20px; border-radius: 40px; cursor: pointer; }
-        .save-btn { background: linear-gradient(90deg, #00b4d8, #0077b6); border: none; color: white; padding: 8px 24px; border-radius: 40px; font-weight: 600; cursor: pointer; }
+        .cancel-btn {
+          background: #1e293b;
+          border: none;
+          color: #cbd5e1;
+          padding: 8px 20px;
+          border-radius: 40px;
+          cursor: pointer;
+        }
+        .save-btn {
+          background: linear-gradient(90deg, #00b4d8, #0077b6);
+          border: none;
+          color: white;
+          padding: 8px 24px;
+          border-radius: 40px;
+          font-weight: 600;
+          cursor: pointer;
+        }
         @media (max-width: 768px) {
           .form-grid { grid-template-columns: 1fr; }
           .modern-table thead { display: none; }
@@ -465,6 +642,12 @@ export default function SiteDataManagement() {
             font-weight: 600;
             color: #00d4ff;
             width: 40%;
+          }
+          .grouped-sections {
+            gap: 24px;
+          }
+          .table-section h4 {
+            font-size: 1rem;
           }
         }
       `}</style>
